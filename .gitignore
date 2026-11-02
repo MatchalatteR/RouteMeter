@@ -1,0 +1,14 @@
+.build/
+.swiftpm/
+dist/
+.DS_Store
+__pycache__/
+*.py[cod]
+*.xcuserstate
+config.json
+state.json
+statistics-push.local.js
+*.log
+*.zip
+*.dmg
+*.app/
