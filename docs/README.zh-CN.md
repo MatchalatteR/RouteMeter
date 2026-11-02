@@ -1,5 +1,7 @@
 # RouteMeter 中文说明
 
+Windows / Clash Verge 用户请看 [Windows 预览版说明](../windows/README.zh-CN.md)：嵌入任务栏，使用独立本机计量转发器，无需修改 Mihomo 内核。以下内容针对 macOS / QX 版。
+
 RouteMeter 是 Quantumult X 的原生 macOS 菜单栏配套组件。它分别显示 **Direct** 和 **Proxy**，并明确标注 **Download、Upload、Total**。
 
 它读取 QX 自己分类后的计数，不按进程名猜测代理流量，也不使用“整机流量减去某张网卡”的算法。当前是首个公开版本 **0.1.0**。项目已提供可复现构建和测试，但不将它等同于套餐计费工具或所有系统上的长期验证。

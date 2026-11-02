@@ -4,6 +4,8 @@ A native macOS menu bar companion for **Quantumult X**. See **Direct** and **Pro
 
 [中文说明](docs/README.zh-CN.md) · [Downloads](https://github.com/MatchalatteR/RouteMeter/releases) · [Report a bug](https://github.com/MatchalatteR/RouteMeter/issues)
 
+**Windows preview:** the `windows-mihomo` branch adds a native taskbar meter for Clash Verge / Mihomo, with an independent authenticated TCP/UDP metering relay and no kernel replacement. Proxy transport bytes are counted during forwarding; Direct remains a sampling reference. See [Windows setup, scope, and build instructions](windows/README.zh-CN.md). The macOS/QX implementation below is unchanged.
+
 ![RouteMeter interface illustration with synthetic example data](docs/preview.svg)
 
 RouteMeter reads QX's own classified counters. It does not estimate proxy usage from process names or subtract a VPN interface from all network traffic.
