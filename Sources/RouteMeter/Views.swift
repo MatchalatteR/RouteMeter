@@ -8,20 +8,30 @@ struct Sparkline: View {
     let ticks: [Tick]
     let active: Bool
     var body: some View {
-        GeometryReader { g in
-            let peak = max(1024, ticks.map { max($0.direct,$0.proxy) }.max() ?? 0)
-            let width = g.size.width, height = g.size.height - 4
-            ForEach(0..<2) { series in
-                Path { path in
-                    for (i,t) in ticks.enumerated() {
-                        let point = CGPoint(x: width * Double(i)/Double(max(59,ticks.count-1)),
-                                            y: height - height * min(1,(series == 0 ? t.direct : t.proxy)/peak)+2)
-                        if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                    }
-                }.stroke(series == 0 ? Color.secondary.opacity(0.7) : Color.accentColor,
-                         style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
-            }
+        ZStack {
+            TrafficLine(ticks: ticks, direct: true).stroke(Color.secondary.opacity(0.7), lineWidth: 1.7)
+            TrafficLine(ticks: ticks, direct: false).stroke(Color.accentColor, lineWidth: 1.7)
         }.opacity(active ? 1 : 0.35)
+    }
+}
+
+private struct TrafficLine: Shape {
+    let ticks: [Tick]
+    let direct: Bool
+    func path(in rect: CGRect) -> Path {
+        let peak: Double = max(1024.0, ticks.map { max($0.direct, $0.proxy) }.max() ?? 0)
+        let height: CGFloat = max(0, rect.height - 4)
+        let denominator = CGFloat(max(59, ticks.count - 1))
+        var path = Path()
+        for (index, tick) in ticks.enumerated() {
+            let rate: Double = direct ? tick.direct : tick.proxy
+            let fraction = CGFloat(min(1.0, rate / peak))
+            let x: CGFloat = rect.minX + rect.width * CGFloat(index) / denominator
+            let y: CGFloat = rect.minY + height - height * fraction + 2
+            let point = CGPoint(x: x, y: y)
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        return path
     }
 }
 
