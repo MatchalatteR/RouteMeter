@@ -12,3 +12,5 @@ statistics-push.local.js
 *.zip
 *.dmg
 *.app/
+windows/**/bin/
+windows/**/obj/

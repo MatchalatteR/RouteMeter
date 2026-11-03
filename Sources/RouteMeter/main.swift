@@ -26,14 +26,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try receiver?.start()
         } catch { startupError = "Cannot read local configuration. Check the RouteMeter application data folder and file permissions." }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.model?.clock = Date(); self?.render()
+            self?.model?.clock = Date(); self?.model?.core.poll(); self?.render()
         }
         timer?.tolerance = 0.2
         render()
         if CommandLine.arguments.contains("--show") || model?.storage.wasConfigured == false || startupError != nil { toggle() }
     }
     func render() {
-        let live = model?.live == true && model?.serverError == nil
+        let live = model?.live == true && model?.meterError == nil
         var title = "Direct —  |  Proxy —"
         var tooltip = startupError ?? model?.stateText ?? "Waiting for QX"
         if live, let model {
@@ -82,7 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 do {
-    if CommandLine.arguments.contains("--print-task") {
+    if CommandLine.arguments.count == 4, CommandLine.arguments[1] == "--core-self-test" {
+        try CoreSelfTest.run(manifest: CommandLine.arguments[2], report: CommandLine.arguments[3])
+    } else if CommandLine.arguments.contains("--print-task") {
         print(try Storage().config.taskLine)
     } else if CommandLine.arguments.contains("--headless") {
         // Used for isolated integration checks. The regular app never needs this option.

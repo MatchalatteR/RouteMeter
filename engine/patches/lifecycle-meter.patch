@@ -1,0 +1,304 @@
+--- a/constant/adapters.go
++++ b/constant/adapters.go
+@@ -68,6 +68,8 @@
+ var ErrNotSupport = errors.New("no support")
+ 
+ type Connection interface {
++	// RouteMeter captures the actual leaf adapter type, not its user-chosen name.
++	RouteMeterOutboundType() AdapterType
+ 	Chains() Chain
+ 	ProviderChains() Chain
+ 	AppendToChains(adapter ProxyAdapter)
+--- a/adapter/outbound/base.go
++++ b/adapter/outbound/base.go
+@@ -227,6 +227,8 @@
+ 	chain       C.Chain
+ 	pdChain     C.Chain
+ 	adapterAddr string
++	routeMeterLeafType C.AdapterType
++	routeMeterLeafSet bool
+ }
+ 
+ func (c *conn) RemoteDestination() string {
+@@ -254,6 +256,7 @@
+ 
+ // AppendToChains implements C.Connection
+ func (c *conn) AppendToChains(a C.ProxyAdapter) {
++	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }
+ 	c.chain = append(c.chain, a.Name())
+ 	c.pdChain = append(c.pdChain, a.ProxyInfo().ProviderName)
+ }
+@@ -290,7 +293,7 @@
+ 	default:
+ 		c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
+ 	}
+-	cc := &conn{N.NewExtendedConn(c), nil, nil, a.Addr()}
++	cc := &conn{ExtendedConn: N.NewExtendedConn(c), adapterAddr: a.Addr()}
+ 	cc.AppendToChains(a)
+ 	return cc
+ }
+@@ -303,6 +306,8 @@
+ 	connID      string
+ 	adapterAddr string
+ 	resolveUDP  func(ctx context.Context, metadata *C.Metadata) error
++	routeMeterLeafType C.AdapterType
++	routeMeterLeafSet bool
+ }
+ 
+ func (c *packetConn) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
+@@ -326,6 +331,7 @@
+ 
+ // AppendToChains implements C.Connection
+ func (c *packetConn) AppendToChains(a C.ProxyAdapter) {
++	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }
+ 	c.chain = append(c.chain, a.Name())
+ 	c.pdChain = append(c.pdChain, a.ProxyInfo().ProviderName)
+ }
+@@ -361,7 +367,7 @@
+ 	default:
+ 		epc = N.NewDeadlineEnhancePacketConn(epc) // most conn from outbound can't handle readDeadline correctly
+ 	}
+-	cpc := &packetConn{epc, nil, nil, a.Name(), utils.NewUUIDV4().String(), a.Addr(), a.ResolveUDP}
++	cpc := &packetConn{EnhancePacketConn: epc, adapterName: a.Name(), connID: utils.NewUUIDV4().String(), adapterAddr: a.Addr(), resolveUDP: a.ResolveUDP}
+ 	cpc.AppendToChains(a)
+ 	return cpc
+ }
+@@ -415,3 +421,7 @@
+ 	runtime.SetFinalizer(proxy, (*autoCloseProxyAdapter).Close)
+ 	return proxy
+ }
++
++func (c *conn) RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }
++
++func (c *packetConn) RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }
+--- a/tunnel/statistic/tracker.go
++++ b/tunnel/statistic/tracker.go
+@@ -4,6 +4,7 @@
+ 	"io"
+ 	"net"
+ 	"time"
++	"github.com/metacubex/mihomo/component/routemeter"
+ 
+ 	"github.com/metacubex/mihomo/common/atomic"
+ 	"github.com/metacubex/mihomo/common/buf"
+@@ -39,6 +40,7 @@
+ 	manager *Manager
+ 
+ 	pushToManager bool `json:"-"`
++	usage *routemeter.Handle `json:"-"`
+ }
+ 
+ func (tt *tcpTracker) ID() string {
+@@ -56,6 +58,7 @@
+ 		tt.manager.PushDownloaded(download)
+ 	}
+ 	tt.DownloadTotal.Add(download)
++	tt.usage.Add(download, 0)
+ 	return n, err
+ }
+ 
+@@ -66,6 +69,7 @@
+ 		tt.manager.PushDownloaded(download)
+ 	}
+ 	tt.DownloadTotal.Add(download)
++	tt.usage.Add(download, 0)
+ 	return
+ }
+ 
+@@ -75,6 +79,7 @@
+ 			tt.manager.PushDownloaded(download)
+ 		}
+ 		tt.DownloadTotal.Add(download)
++	tt.usage.Add(download, 0)
+ 	}}
+ }
+ 
+@@ -85,6 +90,7 @@
+ 		tt.manager.PushUploaded(upload)
+ 	}
+ 	tt.UploadTotal.Add(upload)
++	tt.usage.Add(0, upload)
+ 	return n, err
+ }
+ 
+@@ -95,6 +101,7 @@
+ 		tt.manager.PushUploaded(upload)
+ 	}
+ 	tt.UploadTotal.Add(upload)
++	if err == nil { tt.usage.Add(0, upload) } else { tt.usage.UncertainUpload(upload) }
+ 	return
+ }
+ 
+@@ -104,11 +111,13 @@
+ 			tt.manager.PushUploaded(upload)
+ 		}
+ 		tt.UploadTotal.Add(upload)
++	tt.usage.Add(0, upload)
+ 	}}
+ }
+ 
+ func (tt *tcpTracker) Close() error {
+ 	tt.manager.Leave(tt)
++	tt.usage.Close()
+ 	return tt.Conn.Close()
+ }
+ 
+@@ -136,6 +145,11 @@
+ 	}
+ 
+ 	if pushToManager {
++		t.usage = routemeter.Default(C.Path.HomeDir()).BeginSafe(metadata.ProcessPath, conn.RouteMeterOutboundType().String())
++		t.usage.Add(downloadTotal, uploadTotal)
++	}
++
++	if pushToManager {
+ 		if uploadTotal > 0 {
+ 			manager.PushUploaded(uploadTotal)
+ 		}
+@@ -159,6 +173,7 @@
+ 	manager *Manager
+ 
+ 	pushToManager bool `json:"-"`
++	usage *routemeter.Handle `json:"-"`
+ }
+ 
+ func (ut *udpTracker) ID() string {
+@@ -176,6 +191,7 @@
+ 		ut.manager.PushDownloaded(download)
+ 	}
+ 	ut.DownloadTotal.Add(download)
++	ut.usage.Add(download, 0)
+ 	return n, addr, err
+ }
+ 
+@@ -186,6 +202,7 @@
+ 		ut.manager.PushDownloaded(download)
+ 	}
+ 	ut.DownloadTotal.Add(download)
++	ut.usage.Add(download, 0)
+ 	return
+ }
+ 
+@@ -196,11 +213,13 @@
+ 		ut.manager.PushUploaded(upload)
+ 	}
+ 	ut.UploadTotal.Add(upload)
++	ut.usage.Add(0, upload)
+ 	return n, err
+ }
+ 
+ func (ut *udpTracker) Close() error {
+ 	ut.manager.Leave(ut)
++	ut.usage.Close()
+ 	return ut.PacketConn.Close()
+ }
+ 
+@@ -228,6 +247,11 @@
+ 	}
+ 
+ 	if pushToManager {
++		ut.usage = routemeter.Default(C.Path.HomeDir()).BeginSafe(metadata.ProcessPath, conn.RouteMeterOutboundType().String())
++		ut.usage.Add(downloadTotal, uploadTotal)
++	}
++
++	if pushToManager {
+ 		if uploadTotal > 0 {
+ 			manager.PushUploaded(uploadTotal)
+ 		}
+--- a/main.go
++++ b/main.go
+@@ -2,6 +2,7 @@
+ 
+ import (
+ 	"context"
++	"github.com/metacubex/mihomo/component/routemeter"
+ 	"encoding/base64"
+ 	"flag"
+ 	"fmt"
+@@ -213,6 +214,11 @@
+ 		options = append(options, hub.WithSecret(secret))
+ 	}
+ 
++	if err := routemeter.Initialize(C.Path.HomeDir()); err != nil {
++		log.Fatalln("RouteMeter metering initialization failed: %s", err.Error())
++	}
++	defer routemeter.Shutdown()
++
+ 	if err := hub.Parse(configBytes, options...); err != nil {
+ 		log.Fatalln("Parse config error: %s", err.Error())
+ 	}
+--- a/tunnel/tunnel.go
++++ b/tunnel/tunnel.go
+@@ -264,7 +264,8 @@
+ // SetFindProcessMode replace SetAlwaysFindProcess
+ // always find process info if legacyAlways = true or mode.Always() = true, may be increase many memory
+ func SetFindProcessMode(mode process.FindProcessMode) {
+-	findProcessMode.Store(mode)
++	// RouteMeter Core always attempts source ownership; failures stay Unattributed.
++	findProcessMode.Store(process.FindProcessAlways)
+ }
+ 
+ func isHandle(t C.Type) bool {
+--- a/component/process/process_darwin.go
++++ b/component/process/process_darwin.go
+@@ -58,7 +58,9 @@
+ 		itemSize += 208
+ 	}
+ 
+-	var fallbackUDPProcess string
++	var fallbackPID, matchedPID uint32
++	var fallbackFound, matchedFound bool
++	var fallbackAmbiguous, matchedAmbiguous bool
+ 	// skip the first xinpgen(24 bytes) block
+ 	for i := 24; i+itemSize <= len(buf); i += itemSize {
+ 		// offset of xinpcb_n and xsocket_n
+@@ -92,19 +94,19 @@
+ 		if ip == srcIP {
+ 			// xsocket_n.so_last_pid
+ 			pid := readNativeUint32(buf[so+68 : so+72])
+-			pp, err := getExecPathFromPID(pid)
+-			return 0, pp, err
++			if matchedFound && matchedPID != pid { matchedAmbiguous = true }; matchedPID = pid; matchedFound = true
++			continue
+ 		}
+ 
+ 		// udp packet connection may be not equal with srcIP
+ 		if network == UDP && srcIP.IsUnspecified() && isIPv4 == srcIsIPv4 {
+-			fallbackUDPProcess, _ = getExecPathFromPID(readNativeUint32(buf[so+68 : so+72]))
++			pid := readNativeUint32(buf[so+68 : so+72])
++			if fallbackFound && fallbackPID != pid { fallbackAmbiguous = true }; fallbackPID = pid; fallbackFound = true
+ 		}
+ 	}
+ 
+-	if network == UDP && fallbackUDPProcess != "" {
+-		return 0, fallbackUDPProcess, nil
+-	}
++	if matchedFound { if matchedAmbiguous { return 0, "", ErrNotFound }; pp, err := getExecPathFromPID(matchedPID); return 0, pp, err }
++	if network == UDP && fallbackFound && !fallbackAmbiguous { pp, err := getExecPathFromPID(fallbackPID); return 0, pp, err }
+ 
+ 	return 0, "", ErrNotFound
+ }
+--- a/component/process/process_windows.go
++++ b/component/process/process_windows.go
+@@ -115,6 +115,8 @@
+ func (s *searcher) Search(b []byte, ip netip.Addr, port uint16) (uint32, error) {
+ 	n := int(readNativeUint32(b[:4]))
+ 	itemSize := s.itemSize
++	var match uint32
++	var found bool
+ 	for i := 0; i < n; i++ {
+ 		row := b[4+itemSize*i : 4+itemSize*(i+1)]
+ 
+@@ -144,9 +146,9 @@
+ 		}
+ 
+ 		pid := readNativeUint32(row[s.pid : s.pid+4])
+-		return pid, nil
+-	}
+-	return 0, ErrNotFound
++		if found && match != pid { return 0, ErrNotFound }; match = pid; found = true
++	}
++	if found { return match, nil }; return 0, ErrNotFound
+ }
+ 
+ func newSearcher(isV4, isTCP bool) *searcher {

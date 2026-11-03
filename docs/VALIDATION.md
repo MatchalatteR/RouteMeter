@@ -1,15 +1,32 @@
 # Validation scope
 
-Initial development environment: Apple Silicon, macOS 27.0.1, QX 1.8.0 (946), Apple Swift 6.4.
+## 0.2 lifecycle-meter milestone
 
-- The prototype received real QX Direct/Proxy TCP/UDP counters at approximately two-second intervals.
-- The native menu bar/panel was checked with real data. The panel was enlarged, constrained to the current screen's usable height, and checked at both ends of its internal scroll area.
-- The public receiver is exercised using its actual executable on a free loopback port. The test covers generated script retrieval, credential checks, invalid JSON, browser/Host rejection, classified persisted totals, and file permissions.
-- The QX bridge contract test verifies the loopback target, field allowlist, authorization header, and silent completion on API/network errors.
-- XCTest covers baseline behavior, classification, TCP/UDP combination, node appearance/disappearance, restart rebasing, persistent state, reset, stale/out-of-order snapshots, duplicate records, integer limits, and incremental HTTP input.
+The common core and two native clients have passed real isolated tests on **native macOS and Windows CI runners**. These are runtime tests, not only cross-compilation. The first Windows attempt exposed checkout line-ending differences; LF attributes and normalized patch preparation address that portability issue.
 
-Full Xcode is required for XCTest on macOS; Command Line Tools alone may build the app but do not supply XCTest. The GitHub Actions workflow runs the XCTest suite under Xcode before building release packages.
+The loopback integration verifies:
 
-Apple Silicon and Intel packages are built separately. A successful cross-build is not an Intel hardware or macOS 14 runtime test. Re-login, whole-machine reboot, sleep/wake, multi-monitor edge cases, and long-duration energy use are not yet established by this initial validation.
+- 25 completed Proxy TCP flows and 25 completed Direct TCP flows, with exact known payload bytes in both directions; all flows may close before the viewer samples.
+- Proxy and Direct UDP datagrams, with exact application-payload counts.
+- A proxy group with a Direct-looking name and a Direct adapter with a Proxy-looking name; actual adapter types determine the bucket.
+- Two real client executables (Python and curl), with nonempty OS-backed executable ownership.
+- Componentwise App/global conservation, including explicit unknown buckets.
+- The actual native viewer executable reads and validates the real core's HTTP/JSON protocol.
+- Native Windows viewer schema tests reject missing fields, inconsistent totals, stale data, duplicate identities and non-loopback connection files.
+- Counters survive closed flows and a core restart after a successful checkpoint.
 
-Check the repository's current Actions run for the exact commit's CI result. This file describes test coverage and its limits; it is not a permanent assertion that every future build passes.
+The pure metering package also tests concurrent accounting, persistent epochs, corrupt-state preservation, unknown source/route, private read-only HTTP authentication, error/overflow visibility, and exclusive writer locking. macOS runs the Go race detector. The Swift suite tests aggregate compatibility, HTTP parsing, core schemas and conservation. See the current commit's Actions result for the precise suite counts.
+
+Development Mac: Apple Silicon, macOS 27.0.1, Swift 6.4; pinned core base Mihomo v1.19.33; Go 1.27.3. CI uses macOS 15 and Windows runners with .NET 8. Exact runner image details are recorded in the Actions logs.
+
+## Limits
+
+- Application-payload bytes inside the controlled core are the measurement boundary. Another proxy, VPN, transport overhead, retransmissions or ISP accounting can differ.
+- The OS-owning executable is measured. Shared system/background services can appear as that service, rather than the GUI App that scheduled work.
+- The tests use explicit local HTTP/SOCKS inbounds and mock upstreams. They do not establish a whole-device TUN deployment, every protected process or third-party App, all network protocols, a personal Windows machine, or long-duration energy use.
+- macOS Intel is cross-built; Windows ARM64 and Intel Mac hardware were not runtime-validated by this milestone.
+- Normal checkpoint interval is one second, with normal-shutdown flush. A forced termination or storage failure can lose data since the last successful checkpoint. Invalid restored state is visibly flagged, not described as a complete history.
+- Native API/client data paths are runtime-tested. Full interactive Windows window/tray behavior, every display scaling/multi-monitor combination, re-login and whole-machine reboot remain broader acceptance work.
+- macOS distributions are ad-hoc signed, not Developer ID notarized; Windows packages do not have Authenticode signing yet.
+
+The initial QX 0.1 prototype was verified against real QX aggregate counters. Its panel was enlarged and constrained after user feedback. QX legacy mode remains aggregate-only; the missing QX App/source fields were verified locally and are not substituted with heuristics.

@@ -14,28 +14,37 @@ final class MeterModel: ObservableObject {
     @Published var copied = false
     @Published var startup = LoginStart.enabled
     let storage: Storage
+    let core: CoreClient
+    private var coreChanges: AnyCancellable?
     private var lastSave = Date.distantPast
     init(storage: Storage) {
         self.storage = storage; traffic = storage.load(); notice = storage.warning
+        core = CoreClient(root: storage.root)
+        coreChanges = core.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
     }
-    var direct: ByteCounts { traffic.directRate }
-    var proxy: ByteCounts { traffic.proxyRate }
-    var directTotal: ByteCounts { traffic.directTotal }
-    var proxyTotal: ByteCounts { traffic.proxyTotal }
-    var totalRate: ByteCounts { traffic.totalRate }
-    var totalVolume: ByteCounts { traffic.totalVolume }
-    var started: Date { traffic.started ?? Date() }
-    var nodes: [String] { traffic.nodes }
-    var live: Bool { lastUpdate.map { clock.timeIntervalSince($0) < 9 } ?? false }
-    var stateText: String { serverError == nil ? (live ? "QX connected" : (lastUpdate == nil ? "Waiting for QX" : "Data interrupted")) : "Receiver unavailable" }
+    var direct: ByteCounts { core.selected ? core.directRate : traffic.directRate }
+    var proxy: ByteCounts { core.selected ? core.proxyRate : traffic.proxyRate }
+    var directTotal: ByteCounts { core.selected ? core.direct : traffic.directTotal }
+    var proxyTotal: ByteCounts { core.selected ? core.proxy : traffic.proxyTotal }
+    var unknownTotal: ByteCounts { core.selected ? core.unknown : ByteCounts() }
+    var totalRate: ByteCounts { core.selected ? direct + proxy + core.unknownRate : traffic.totalRate }
+    var totalVolume: ByteCounts { directTotal + proxyTotal + unknownTotal }
+    var started: Date { core.selected ? core.started : traffic.started ?? Date() }
+    var nodes: [String] { core.selected ? [] : traffic.nodes }
+    var live: Bool { core.selected ? core.live : lastUpdate.map { clock.timeIntervalSince($0) < 9 } ?? false }
+    var meterError: String? { core.selected ? core.error : serverError }
+    var stateText: String {
+        if core.selected { return core.error == nil ? (core.live ? "Core connected" : "Waiting for Core") : "Core unavailable" }
+        return serverError == nil ? (live ? "QX connected" : (lastUpdate == nil ? "Waiting for QX" : "Data interrupted")) : "Receiver unavailable"
+    }
     func ingest(_ packet: Envelope) {
-        guard traffic.ingest(packet) else { return }
+        guard !core.selected, traffic.ingest(packet) else { return }
         let now = Date(); lastUpdate = now; clock = now
         ticks.append(Tick(direct: Double(direct.total), proxy: Double(proxy.total)))
         if ticks.count > 60 { ticks.removeFirst(ticks.count - 60) }
         if now.timeIntervalSince(lastSave) >= 10 { save() }
     }
-    func reset() { traffic.reset(); save() }
+    func reset() { if core.selected { core.reset() } else { traffic.reset(); save() } }
     func setStartup(_ value: Bool) {
         do { try LoginStart.set(value); startup = LoginStart.enabled }
         catch { notice = "Could not update the login item."; startup = LoginStart.enabled }
