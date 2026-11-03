@@ -60,6 +60,8 @@ s = s.replace('pp, err := getExecPathFromPID(pid)\n\t\t\treturn 0, pp, err', 'if
 s = s.replace('fallbackUDPProcess, _ = getExecPathFromPID(readNativeUint32(buf[so+68 : so+72]))', 'pid := readNativeUint32(buf[so+68 : so+72])\n\t\t\tif fallbackFound && fallbackPID != pid { fallbackAmbiguous = true }; fallbackPID = pid; fallbackFound = true')
 s = s.replace('if network == UDP && fallbackUDPProcess != "" {\n\t\treturn 0, fallbackUDPProcess, nil\n\t}', 'if matchedFound { if matchedAmbiguous { return 0, "", ErrNotFound }; pp, err := getExecPathFromPID(matchedPID); return 0, pp, err }\n\tif network == UDP && fallbackFound && !fallbackAmbiguous { pp, err := getExecPathFromPID(fallbackPID); return 0, pp, err }')
 edited['component/process/process_darwin.go'] = s
+s = edited['component/process/process_darwin.go'].replace('func findProcessName(network string, ip netip.Addr, port int)', 'func findProcessNameNative(network string, ip netip.Addr, port int)')
+edited['component/process/process_darwin.go'] = s
 s = edited['component/process/process_windows.go']
 s = s.replace('itemSize := s.itemSize\n\tfor i := 0;', 'itemSize := s.itemSize\n\tvar match uint32\n\tvar found bool\n\tfor i := 0;')
 s = s.replace('pid := readNativeUint32(row[s.pid : s.pid+4])\n\t\treturn pid, nil', 'pid := readNativeUint32(row[s.pid : s.pid+4])\n\t\tif found && match != pid { return 0, ErrNotFound }; match = pid; found = true')

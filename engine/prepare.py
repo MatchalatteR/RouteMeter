@@ -47,4 +47,6 @@ destination = source/'component/routemeter'
 destination.mkdir(parents=True,exist_ok=True)
 for file in (root/'engine/meter').glob('*.go'):
     shutil.copy2(file,destination/file.name)
+for file in (root/'engine/owner').glob('*.go'):
+    shutil.copy2(file,source/'component/process'/file.name)
 print('Prepared Mihomo '+metadata['commit']+' with RouteMeter lifecycle counters')

@@ -8,6 +8,7 @@ RouteMeter 0.2 has two components: a native viewer and **RouteMeter Core**, a se
 - TCP connections that close between UI refreshes remain in the cumulative counters.
 - Direct/Proxy is determined from the actual leaf adapter type, not a policy/group/node name.
 - Source ownership is looked up at connection creation using the OS-backed resolver. Missing or ambiguous owners go to **Unattributed**. Unknown adapter types go to **Unknown routing**.
+- On macOS, restricted raw source enumeration can fall back to the supported read-only system ownership utility, running as the current user. Exact source endpoint and transport are matched; server-side peer endpoints and ambiguous multiple owners are not accepted. This does not request Full Disk Access or change system security settings. Connection-lookup latency under heavy connection churn remains a separate performance acceptance item.
 - On macOS, executable paths inside the same outer `.app` bundle group under that App. On Windows, executable identities use a normalized, case-insensitive full path. Separate programs with the same basename are not merged.
 - These are core-routed application-payload bytes, not encrypted wire bytes, retransmissions, ISP billing, traffic outside this core, or retrospective statistics for another VPN/proxy.
 

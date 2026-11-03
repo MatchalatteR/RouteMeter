@@ -46,7 +46,10 @@ jobs:
         run: ./scripts/build-core.sh
       - name: Build macOS viewer
         if: runner.os == 'macOS'
-        run: swift build --build-system native
+        run: |
+          codesign --force --sign - dist/core/darwin-arm64/RouteMeterCore
+          (cd .build/engine/mihomo && go test ./component/process -run TestRouteMeterFallback)
+          swift build --build-system native
       - name: Build Windows viewer and archive
         if: runner.os == 'Windows'
         shell: pwsh
@@ -56,7 +59,7 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = macOS ]; then
             python scripts/test-core-integration.py dist/core/darwin-arm64/RouteMeterCore --viewer "$(swift build --build-system native --show-bin-path)/RouteMeter"
-            ROUTEMETER_TEST_LOG_LEVEL=warning python scripts/test-core-integration.py dist/core/darwin-arm64/RouteMeterCore --viewer "$(swift build --build-system native --show-bin-path)/RouteMeter"
+            ROUTEMETER_FORCE_OWNER_FALLBACK=1 ROUTEMETER_TEST_LOG_LEVEL=warning python scripts/test-core-integration.py dist/core/darwin-arm64/RouteMeterCore --viewer "$(swift build --build-system native --show-bin-path)/RouteMeter"
             ROUTEMETER_TEST_LOG_LEVEL=warning python scripts/test-core-integration.py dist/core/darwin-arm64/RouteMeterCore --viewer "$(swift build --build-system native --show-bin-path)/RouteMeter"
           else
             python scripts/test-core-integration.py dist/core/windows-amd64/RouteMeterCore.exe --viewer dist/windows/win-x64/RouteMeter.Windows.exe

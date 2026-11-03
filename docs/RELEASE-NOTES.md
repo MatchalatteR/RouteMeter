@@ -1,4 +1,8 @@
-# RouteMeter 0.2.0
+# RouteMeter 0.2.1
+
+Fix packaged-core App attribution on macOS 27 when raw PCB lookup is restricted for the signed binary. The core uses the supported read-only system ownership utility as the current user, with exact local endpoint matching and ambiguity rejection. No security settings, signatures, privileges or routing settings are weakened. CI now exercises an explicitly signed core and a forced ownership-fallback path. Actual signed-package testing on the development macOS 27 system is required in addition to macOS 15 CI.
+
+The 0.2.0 release is marked preview because its signed Mac package can return all ownership under Unattributed on macOS 27. Payload accounting remains present; that build should not be used as proof of App attribution on macOS 27.
 
 First Windows + macOS lifecycle-meter release.
 

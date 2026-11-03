@@ -2,6 +2,8 @@
 
 ## 0.2 lifecycle-meter milestone
 
+0.2.0 package testing on the macOS 27 development machine exposed a signing-dependent raw source-lookup failure that macOS 15 CI did not catch. The release was reclassified as preview, with the limitation added to its notes. 0.2.1 adds a same-user, read-only system-tool fallback; an explicitly signed local core passed exact TCP/UDP payload, real executable ownership, native viewer protocol and restart checks with that fallback forced. Release validation must also run against the downloaded signed App's embedded helper.
+
 The common core and two native clients have passed real isolated tests on **native macOS and Windows CI runners**. These are runtime tests, not only cross-compilation. The first Windows attempt exposed checkout line-ending differences; LF attributes and normalized patch preparation address that portability issue.
 
 The loopback integration verifies:

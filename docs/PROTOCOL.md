@@ -15,6 +15,8 @@ For every snapshot, the componentwise sum over Apps equals the global totals, in
 
 macOS App identity groups the outermost `.app` bundle. Windows identity normalizes path separators and case. Missing or ambiguous OS-backed source resolution uses `id: unknown` and name `Unattributed`. The identity describes the OS-owning executable; shared background services may appear under their service process rather than an initiating GUI App. No domain, user-agent, interface, destination-country, node-name, or currently selected group heuristic supplies an App identity or route.
 
+macOS 0.2.1 can use a same-user read-only system ownership query if the raw PCB resolver is unavailable. The query matches the original local IP/port and transport, rejects TCP listeners/closed records and multiple distinct PID matches, and resolves the executable through the OS. It does not infer an App from a process-name hint.
+
 Clients validate the schema marker, freshness, unique identities, and conservation. They accept loopback manifests only and do not follow HTTP redirects or inherit a system HTTP proxy for these requests. They derive rates from cumulative snapshots; a missed refresh can affect the rate display but cannot erase completed-flow usage.
 
 Reset is a viewer-local baseline, keyed by epoch. Core restarts preserve the epoch after a valid persisted restore and use a new instance ID. Invalid state is retained locally and produces a new epoch with an error. Normal checkpoint interval is one second. A forced stop loses any data not yet checkpointed; disk errors or delayed checkpoints can extend this interval. This protocol is not a guarantee of recovery after power loss or a billing/wire-byte meter.
