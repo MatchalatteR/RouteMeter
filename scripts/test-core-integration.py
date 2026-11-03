@@ -42,6 +42,7 @@ def decode_address(sock):
 class TCPServer(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 128
 
 class UDPServer(socketserver.ThreadingUDPServer):
     daemon_threads = True
@@ -76,6 +77,7 @@ allowed_ports = set()
 class Proxy(socketserver.BaseRequestHandler):
     tcp_connections = 0
     udp_packets = 0
+    failures = []
     def handle(self):
         remote = None
         try:
@@ -117,7 +119,8 @@ class Proxy(socketserver.BaseRequestHandler):
                     data=source.recv(65536)
                     if not data:return
                     (remote if source is self.request else self.request).sendall(data)
-        except (OSError,AssertionError,ConnectionError): pass
+        except (OSError,AssertionError,ConnectionError) as error:
+            Proxy.failures.append(type(error).__name__+': '+str(error))
         finally:
             if remote:remote.close()
 
@@ -154,7 +157,7 @@ bind-address: 127.0.0.1
 external-controller: 127.0.0.1:{api}
 secret: "{secret}"
 mode: rule
-log-level: warning
+log-level: {os.environ.get('ROUTEMETER_TEST_LOG_LEVEL','debug')}
 find-process-mode: off
 geo-auto-update: false
 dns:
@@ -285,6 +288,7 @@ rules:
         assert restored['epoch']==old_epoch and restored['totals']==old_totals,(restored['totals'],old_totals)
         print('PASS cumulative state across core restart; zero closed-flow loss',flush=True)
     except BaseException:
+        print('Mock upstream diagnostics:',Proxy.failures,file=sys.stderr,flush=True)
         log_file=root/'core.log'
         if log_file.exists():print(log_file.read_text(errors='replace')[-10000:],file=sys.stderr,flush=True)
         raise

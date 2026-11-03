@@ -19,7 +19,10 @@ s = s.replace('type Connection interface {', 'type Connection interface {\n\t// 
 edited['constant/adapters.go'] = s
 s = edited['adapter/outbound/base.go']
 for name in ['conn', 'packetConn']:
-    s = s.replace('type '+name+' struct {', 'type '+name+' struct {\n\trouteMeterLeafType C.AdapterType\n\trouteMeterLeafSet bool')
+    start=s.index('type '+name+' struct {')
+    end=s.index('\n}',start)
+    # Preserve offsets of the upstream embedded transport and existing fields.
+    s=s[:end]+'\n\trouteMeterLeafType C.AdapterType\n\trouteMeterLeafSet bool'+s[end:]
     signature = 'func (c *'+name+') AppendToChains(a C.ProxyAdapter) {'
     s = s.replace(signature, signature+'\n\tif !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }')
     s += '\nfunc (c *'+name+') RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }\n'

@@ -11,15 +11,15 @@
  	AppendToChains(adapter ProxyAdapter)
 --- a/adapter/outbound/base.go
 +++ b/adapter/outbound/base.go
-@@ -223,6 +223,8 @@
- }
- 
- type conn struct {
-+	routeMeterLeafType C.AdapterType
-+	routeMeterLeafSet bool
- 	N.ExtendedConn
+@@ -227,6 +227,8 @@
  	chain       C.Chain
  	pdChain     C.Chain
+ 	adapterAddr string
++	routeMeterLeafType C.AdapterType
++	routeMeterLeafSet bool
+ }
+ 
+ func (c *conn) RemoteDestination() string {
 @@ -254,6 +256,7 @@
  
  // AppendToChains implements C.Connection
@@ -28,7 +28,7 @@
  	c.chain = append(c.chain, a.Name())
  	c.pdChain = append(c.pdChain, a.ProxyInfo().ProviderName)
  }
-@@ -290,12 +293,14 @@
+@@ -290,7 +293,7 @@
  	default:
  		c = N.NewDeadlineConn(c) // most conn from outbound can't handle readDeadline correctly
  	}
@@ -37,13 +37,15 @@
  	cc.AppendToChains(a)
  	return cc
  }
- 
- type packetConn struct {
+@@ -303,6 +306,8 @@
+ 	connID      string
+ 	adapterAddr string
+ 	resolveUDP  func(ctx context.Context, metadata *C.Metadata) error
 +	routeMeterLeafType C.AdapterType
 +	routeMeterLeafSet bool
- 	N.EnhancePacketConn
- 	chain       C.Chain
- 	pdChain     C.Chain
+ }
+ 
+ func (c *packetConn) ResolveUDP(ctx context.Context, metadata *C.Metadata) error {
 @@ -326,6 +331,7 @@
  
  // AppendToChains implements C.Connection
