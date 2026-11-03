@@ -21,11 +21,10 @@ s = edited['adapter/outbound/base.go']
 for name in ['conn', 'packetConn']:
     s = s.replace('type '+name+' struct {', 'type '+name+' struct {\n\trouteMeterLeafType C.AdapterType\n\trouteMeterLeafSet bool')
     signature = 'func (c *'+name+') AppendToChains(a C.ProxyAdapter) {'
-    s = s.replace(signature, signature+'\n\tif !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); if a.Type() == C.Direct { if hint, ok := a.(interface { RouteMeterUnresolvedTransport() bool }); ok && hint.RouteMeterUnresolvedTransport() { c.routeMeterLeafType = C.AdapterType(-1) } }; c.routeMeterLeafSet = true }')
+    s = s.replace(signature, signature+'\n\tif !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }')
     s += '\nfunc (c *'+name+') RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }\n'
 s = s.replace('&conn{N.NewExtendedConn(c), nil, nil, a.Addr()}', '&conn{ExtendedConn: N.NewExtendedConn(c), adapterAddr: a.Addr()}')
 s = s.replace('&packetConn{epc, nil, nil, a.Name(), utils.NewUUIDV4().String(), a.Addr(), a.ResolveUDP}', '&packetConn{EnhancePacketConn: epc, adapterName: a.Name(), connID: utils.NewUUIDV4().String(), adapterAddr: a.Addr(), resolveUDP: a.ResolveUDP}')
-s += '\n// A Direct adapter with a custom transport/dialer may still traverse a proxy.\nfunc (b *Base) RouteMeterUnresolvedTransport() bool { return b.pdName != "" || b.dialer != nil }\n'
 edited['adapter/outbound/base.go'] = s
 
 s = edited['tunnel/statistic/tracker.go']

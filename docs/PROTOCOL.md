@@ -11,7 +11,7 @@ The response includes:
 - `apps`: stable identity, display name, executable/bundle path, attribution status, each routing bucket's counters, active count, and lifetime connection count.
 - `uncertainUpload`, `overflow`, and `persistenceError`: explicit quality/durability indicators.
 
-For every snapshot, the componentwise sum over Apps equals the global totals, including the Unattributed owner. Unknown routing is a distinct bucket; it never silently becomes Proxy. A Direct adapter with a custom/dialer-proxy transport is kept Unknown when its final transport cannot be proven. Bytes are counted at actual adapter I/O paths, including zero-copy callbacks and UDP wrappers. Connection close only changes the active count; cumulative bytes remain.
+For every snapshot, the componentwise sum over Apps equals the global totals, including the Unattributed owner. Unknown routing is a distinct bucket; it never silently becomes Proxy. Bytes are counted at actual adapter I/O paths, including zero-copy callbacks and UDP wrappers. Connection close only changes the active count; cumulative bytes remain. Classification describes the core's leaf adapter; another host VPN/proxy that reroutes the transport is outside this measurement boundary.
 
 macOS App identity groups the outermost `.app` bundle. Windows identity normalizes path separators and case. Missing or ambiguous OS-backed source resolution uses `id: unknown` and name `Unattributed`. The identity describes the OS-owning executable; shared background services may appear under their service process rather than an initiating GUI App. No domain, user-agent, interface, destination-country, node-name, or currently selected group heuristic supplies an App identity or route.
 

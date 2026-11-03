@@ -46,6 +46,15 @@ struct MeterPanel: View {
                 Circle().fill(model.live ? Color.accentColor : Color.secondary).frame(width: 6,height: 6)
                 Text(model.stateText).font(.system(size: 12)).foregroundStyle(.secondary)
             }
+            if model.core.selected {
+                Picker("View", selection: Binding(get: { model.core.showApps }, set: { model.core.showApps = $0 })) {
+                    Text("Overview").tag(false)
+                    Text("Proxy apps").tag(true)
+                }.pickerStyle(.segmented)
+            }
+            if model.core.selected && model.core.showApps {
+                CoreAppBreakdown(client: model.core)
+            } else {
             VStack(alignment: .leading, spacing: 22) {
                 route("Direct", value: model.direct, color: .secondary)
                 route("Proxy", value: model.proxy, color: .accentColor)
@@ -81,7 +90,10 @@ struct MeterPanel: View {
                 total("Total", model.totalVolume)
                 Text("Each row: Total = Download + Upload").font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            if model.core.selected { CoreAppBreakdown(client: model.core) }
+            if model.core.selected {
+                Button("View Proxy usage by App →") { model.core.showApps = true }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+            }
+            }
             if !model.nodes.isEmpty {
                 Text(model.nodes.joined(separator: " · ")).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
             }
@@ -113,7 +125,7 @@ struct MeterPanel: View {
             }.font(.system(size: 13))
             Divider()
             HStack {
-                Button("Open QX") { model.openQX() }
+                if !model.core.selected { Button("Open QX") { model.openQX() } }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }.buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(.secondary)
@@ -153,7 +165,7 @@ private struct CoreAppBreakdown: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Divider()
-            Text("Proxy usage by App").font(.system(size: 15, weight: .semibold))
+            Text("Proxy usage by App / Process").font(.system(size: 15, weight: .semibold))
             Toggle("Show live rates", isOn: $client.appLiveRates).toggleStyle(.checkbox).font(.system(size: 12))
             TextField("Filter apps", text: $client.filter).textFieldStyle(.roundedBorder)
             if client.unattributedProxy.total > 0 {
@@ -180,6 +192,8 @@ private struct CoreAppBreakdown: View {
             }
             if client.rows.isEmpty { Text("No Proxy bytes in this view yet.").font(.system(size: 12)).foregroundStyle(.secondary) }
             Text("Sorted by Proxy usage. Top 50 shown. Reset affects this viewer only.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+            Text("Shared background services appear under their owning process.")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }

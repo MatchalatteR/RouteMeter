@@ -284,6 +284,10 @@ rules:
         core,restored=start_core()
         assert restored['epoch']==old_epoch and restored['totals']==old_totals,(restored['totals'],old_totals)
         print('PASS cumulative state across core restart; zero closed-flow loss',flush=True)
+    except BaseException:
+        log_file=root/'core.log'
+        if log_file.exists():print(log_file.read_text(errors='replace')[-10000:],file=sys.stderr,flush=True)
+        raise
     finally:
         if core and core.poll() is None:
             core.terminate()

@@ -2,6 +2,7 @@
  <ScrollViewer VerticalScrollBarVisibility="Auto">
   <StackPanel Margin="24">
    <DockPanel Margin="0,0,0,20"><TextBlock Text="RouteMeter" FontSize="22" FontWeight="SemiBold"/><TextBlock x:Name="Status" Text="Waiting for Core" HorizontalAlignment="Right" VerticalAlignment="Center"/></DockPanel>
+   <Button Content="View Proxy apps ↓" Click="Apps_Click" HorizontalAlignment="Left" Margin="0,0,0,12"/>
    <TextBlock Text="Live · Download | Upload" FontSize="14" Foreground="DimGray" Margin="0,0,0,8"/>
    <TextBlock x:Name="LiveDirect" Text="Direct   — | —" FontSize="19" Margin="0,4"/>
    <TextBlock x:Name="LiveProxy" Text="Proxy    — | —" FontSize="19" Margin="0,4"/>
@@ -12,7 +13,7 @@
     <DataGrid.Columns><DataGridTextColumn Header="" Binding="{Binding Name}" Width="80"/><DataGridTextColumn Header="Download" Binding="{Binding Download}" Width="*"/><DataGridTextColumn Header="Upload" Binding="{Binding Upload}" Width="*"/><DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="*"/></DataGrid.Columns>
    </DataGrid>
    <Separator/>
-   <TextBlock Text="Proxy usage by App" FontSize="16" FontWeight="SemiBold" Margin="0,16,0,8"/>
+   <TextBlock Text="Proxy usage by App / Process" FontSize="16" FontWeight="SemiBold" Margin="0,16,0,8"/>
    <CheckBox x:Name="ShowRates" Content="Show live rates" Checked="Mode_Changed" Unchecked="Mode_Changed" Margin="0,0,0,8"/>
    <TextBox x:Name="Filter" TextChanged="Filter_Changed" ToolTip="Filter apps" Padding="6" Margin="0,0,0,8"/>
    <DataGrid x:Name="AppGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" MaxHeight="300" Margin="0,0,0,10" FontSize="13">

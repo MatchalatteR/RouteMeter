@@ -13,6 +13,7 @@ public partial class App : System.Windows.Application
             try
             {
                 using var client = new CoreClient();
+                ProtocolChecks.Run();
                 var sample = await client.Read(e.Args[1]);
                 File.WriteAllText(e.Args[2], JsonSerializer.Serialize(new { valid = true, apps = sample.Apps.Count, program = sample.Program }));
                 Shutdown(0);

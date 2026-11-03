@@ -26,6 +26,7 @@ final class CoreClient: ObservableObject {
     @Published var lastUpdate: Date?
     @Published var error: String?
     @Published var appLiveRates = false
+    @Published var showApps = false
     @Published var filter = ""
     @Published var selected = false
     private var previous: CoreUsage?

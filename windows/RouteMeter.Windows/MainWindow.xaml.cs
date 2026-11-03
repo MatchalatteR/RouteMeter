@@ -105,6 +105,7 @@ public partial class MainWindow : Window
         Render();
     }
     private void Mode_Changed(object sender,RoutedEventArgs e){if(IsLoaded)Render();}
+    private void Apps_Click(object sender,RoutedEventArgs e){AppGrid.BringIntoView();}
     private void Filter_Changed(object sender,TextChangedEventArgs e){if(IsLoaded)Render();}
     private void Guide_Click(object sender,RoutedEventArgs e)=>Process.Start(new ProcessStartInfo("https://github.com/MatchalatteR/RouteMeter/blob/main/docs/CORE-SETUP.md"){UseShellExecute=true});
     private void Quit_Click(object sender,RoutedEventArgs e)=>Quit();

@@ -17,8 +17,10 @@ final class Storage {
     var config: AppConfig
     let wasConfigured: Bool
     var warning: String?
-    init() throws {
-        if let custom = ProcessInfo.processInfo.environment["ROUTEMETER_DATA_DIR"] {
+    init(root supplied: URL? = nil) throws {
+        if let supplied {
+            root = supplied
+        } else if let custom = ProcessInfo.processInfo.environment["ROUTEMETER_DATA_DIR"] {
             root = URL(fileURLWithPath: custom, isDirectory: true)
         } else {
             root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/RouteMeter", isDirectory: true)
