@@ -24,7 +24,7 @@
  
  // AppendToChains implements C.Connection
  func (c *conn) AppendToChains(a C.ProxyAdapter) {
-+	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }
++	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); if a.Type() == C.Direct { if hint, ok := a.(interface { RouteMeterUnresolvedTransport() bool }); ok && hint.RouteMeterUnresolvedTransport() { c.routeMeterLeafType = C.AdapterType(-1) } }; c.routeMeterLeafSet = true }
  	c.chain = append(c.chain, a.Name())
  	c.pdChain = append(c.pdChain, a.ProxyInfo().ProviderName)
  }
@@ -48,7 +48,7 @@
  
  // AppendToChains implements C.Connection
  func (c *packetConn) AppendToChains(a C.ProxyAdapter) {
-+	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); c.routeMeterLeafSet = true }
++	if !c.routeMeterLeafSet { c.routeMeterLeafType = a.Type(); if a.Type() == C.Direct { if hint, ok := a.(interface { RouteMeterUnresolvedTransport() bool }); ok && hint.RouteMeterUnresolvedTransport() { c.routeMeterLeafType = C.AdapterType(-1) } }; c.routeMeterLeafSet = true }
  	c.chain = append(c.chain, a.Name())
  	c.pdChain = append(c.pdChain, a.ProxyInfo().ProviderName)
  }
@@ -61,7 +61,7 @@
  	cpc.AppendToChains(a)
  	return cpc
  }
-@@ -415,3 +421,7 @@
+@@ -415,3 +421,10 @@
  	runtime.SetFinalizer(proxy, (*autoCloseProxyAdapter).Close)
  	return proxy
  }
@@ -69,6 +69,9 @@
 +func (c *conn) RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }
 +
 +func (c *packetConn) RouteMeterOutboundType() C.AdapterType { if !c.routeMeterLeafSet { return C.AdapterType(-1) }; return c.routeMeterLeafType }
++
++// A Direct adapter with a custom transport/dialer may still traverse a proxy.
++func (b *Base) RouteMeterUnresolvedTransport() bool { return b.pdName != "" || b.dialer != nil }
 --- a/tunnel/statistic/tracker.go
 +++ b/tunnel/statistic/tracker.go
 @@ -4,6 +4,7 @@

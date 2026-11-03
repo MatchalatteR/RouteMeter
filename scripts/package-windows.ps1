@@ -12,6 +12,16 @@ Copy-Item $core $stage
 Copy-Item engine/licenses/GPL-3.0.txt (Join-Path $stage "LICENSE-Core-GPL-3.0.txt")
 Copy-Item LICENSE (Join-Path $stage "LICENSE-Viewer-MIT.txt")
 Copy-Item docs/CORE-SETUP.md $stage
+Copy-Item THIRD-PARTY-NOTICES.md $stage
+$cache = if ($env:NUGET_PACKAGES) { $env:NUGET_PACKAGES } else { Join-Path $env:USERPROFILE ".nuget/packages" }
+foreach ($package in @("microsoft.netcore.app.runtime.win-x64", "microsoft.windowsdesktop.app.runtime.win-x64")) {
+  $folder = Join-Path $cache $package
+  if (Test-Path $folder) {
+    Get-ChildItem $folder -Recurse -File | Where-Object { $_.Name -match '^(LICENSE|THIRD.?PARTY.?NOTICES).*(txt|md)$' } | ForEach-Object {
+      Copy-Item $_.FullName (Join-Path $stage ($package + "-" + $_.Name)) -Force
+    }
+  }
+}
 $archive = Join-Path $root "dist/RouteMeter-$version-windows-x64.zip"
 Compress-Archive -Path "$stage/*" -DestinationPath $archive -Force
 $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()

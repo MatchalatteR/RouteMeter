@@ -32,12 +32,14 @@ if not source.exists():
                     raise RuntimeError('Unsafe source archive link')
         tar.extractall(source.parent)
     (source.parent/prefix).rename(source)
-digest = hashlib.sha256(patch.read_bytes()).hexdigest()
+normalized = source.parent/'lifecycle-meter.normalized.patch'
+normalized.write_bytes(patch.read_bytes().replace(b'\r\n',b'\n'))
+digest = hashlib.sha256(normalized.read_bytes()).hexdigest()
 if not stamp.exists():
     environment = dict(os.environ,GIT_CEILING_DIRECTORIES=str(source.parent))
     environment.pop('GIT_DIR',None);environment.pop('GIT_WORK_TREE',None)
-    subprocess.run(['git','apply','--check',str(patch)],cwd=source,env=environment,check=True)
-    subprocess.run(['git','apply',str(patch)],cwd=source,env=environment,check=True)
+    subprocess.run(['git','-c','core.autocrlf=false','apply','--check',str(normalized)],cwd=source,env=environment,check=True)
+    subprocess.run(['git','-c','core.autocrlf=false','apply',str(normalized)],cwd=source,env=environment,check=True)
     stamp.write_text(digest)
 elif stamp.read_text()!=digest:
     raise RuntimeError('Patch changed: remove only .build/engine/mihomo and rebuild from the pinned source')
