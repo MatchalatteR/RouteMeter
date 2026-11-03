@@ -37,7 +37,6 @@ private struct TrafficLine: Shape {
 
 struct MeterPanel: View {
     @ObservedObject var model: MeterModel
-    @ObservedObject var updater: AppUpdater
     var panelWidth: CGFloat = 450
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -50,7 +49,7 @@ struct MeterPanel: View {
             Picker("View", selection: Binding(get: { model.core.showApps }, set: { model.core.showApps = $0 })) {
                 Text("Overview").tag(false)
                 Text("Proxy apps").tag(true)
-            }.pickerStyle(.segmented)
+            }.pickerStyle(.segmented).labelsHidden()
             if model.core.showApps {
                 if model.core.selected {
                     CoreAppBreakdown(client: model.core)
@@ -66,7 +65,12 @@ struct MeterPanel: View {
                     }
                 }
             } else {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    Color.clear.frame(width: 66, height: 1)
+                    Text("Download").frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Upload").frame(maxWidth: .infinity, alignment: .leading)
+                }.font(.system(size: 13)).foregroundStyle(.secondary)
                 route("Direct", value: model.direct, color: .secondary)
                 route("Proxy", value: model.proxy, color: .accentColor)
                 route("Total", value: model.totalRate, color: .primary)
@@ -132,17 +136,6 @@ struct MeterPanel: View {
                     Toggle("Launch at login", isOn: Binding(get: { model.startup }, set: { model.setStartup($0) })).toggleStyle(.checkbox)
                 }.padding(.top, 12)
             }.font(.system(size: 13))
-            HStack {
-                Text("Version \(updater.version)").foregroundStyle(.secondary)
-                Spacer()
-                if updater.busy { ProgressView().controlSize(.small) }
-                Button(updater.buttonTitle) { updater.performAction() }
-                    .disabled(updater.busy).foregroundStyle(Color.accentColor)
-            }.buttonStyle(.plain).font(.system(size: 13))
-            if let status = updater.status {
-                Text(status).font(.system(size: 13)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             Divider()
             HStack {
                 if !model.core.selected { Button("Open QX") { model.openQX() } }
@@ -157,14 +150,12 @@ struct MeterPanel: View {
                 Circle().fill(color).frame(width: 5,height: 5)
                 Text(title).font(.system(size: 14,weight: .semibold))
             }.frame(width: 66,alignment: .leading)
-            speedColumn("Download", value.down)
-            Text("|").font(.system(size: 22,weight: .ultraLight)).foregroundStyle(.secondary)
-            speedColumn("Upload", value.up)
+            speedColumn(value.down)
+            speedColumn(value.up)
         }.frame(maxWidth: .infinity,alignment: .leading)
     }
-    private func speedColumn(_ title: String, _ value: UInt64) -> some View {
+    private func speedColumn(_ value: UInt64) -> some View {
         VStack(alignment: .leading,spacing: 6) {
-            Text(title).font(.system(size: 13)).foregroundStyle(.secondary)
             Text(model.live ? bytes(value,rate: true) : "—")
                 .font(.system(size: 24,weight: .semibold,design: .rounded)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.8)
@@ -227,3 +218,22 @@ private struct CoreAppBreakdown: View {
     }
 }
 
+
+struct UpdateControls: View {
+    @ObservedObject var updater: AppUpdater
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Version \(updater.version)").foregroundStyle(.secondary)
+                Spacer()
+                if updater.busy { ProgressView().controlSize(.small) }
+                Button(updater.buttonTitle) { updater.performAction() }
+                    .disabled(updater.busy).foregroundStyle(Color.accentColor)
+            }.buttonStyle(.plain).font(.system(size: 13))
+            if let status = updater.status {
+                Text(status).font(.system(size: 13)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }.padding(.horizontal, 24).padding(.vertical, 14)
+    }
+}

@@ -67,8 +67,12 @@ import RouteMeterCore
         let height = max(180, min(620, available.height - 80))
         let view: AnyView
         if let model {
-            view = AnyView(ScrollView(.vertical, showsIndicators: true) {
-                MeterPanel(model: model, updater: updater, panelWidth: width)
+            view = AnyView(VStack(spacing: 0) {
+                ScrollView(.vertical, showsIndicators: true) {
+                    MeterPanel(model: model, panelWidth: width)
+                }
+                Divider()
+                UpdateControls(updater: updater)
             }.frame(width: width, height: height))
         } else {
             view = AnyView(VStack(alignment: .leading, spacing: 16) {
