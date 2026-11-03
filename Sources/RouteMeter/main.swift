@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 import RouteMeterCore
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
+    let updater = AppUpdater()
     var model: MeterModel?
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var startupError: String?
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if let receipt = AppUpdater.receipt("pid") { try? Data(String(getpid()).utf8).write(to: receipt, options: .atomic) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
             button.target = self; button.action = #selector(toggle)
@@ -20,17 +22,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let storage = try Storage()
             let model = MeterModel(storage: storage); self.model = model
+            if CommandLine.arguments.contains("--show-proxy-apps") { model.core.showApps = true }
             receiver = Receiver(storage: storage, receive: { [weak self] packet in
                 self?.model?.ingest(packet); self?.render()
-            }, status: { [weak self] error in self?.model?.serverError = error; self?.render() })
+            }, status: { [weak self] error in
+                self?.model?.serverError = error; self?.render()
+                if error == nil, let receipt = AppUpdater.receipt("ready") {
+                    try? Data("ready".utf8).write(to: receipt, options: .atomic)
+                }
+            })
             try receiver?.start()
-        } catch { startupError = "Cannot read local configuration. Check the RouteMeter application data folder and file permissions." }
+        } catch { startupError = "Cannot load settings. Check the application data folder permissions." }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.model?.clock = Date(); self?.model?.core.poll(); self?.render()
+            MainActor.assumeIsolated {
+                self?.model?.clock = Date(); self?.model?.core.poll(); self?.render()
+            }
         }
         timer?.tolerance = 0.2
         render()
-        if CommandLine.arguments.contains("--show") || model?.storage.wasConfigured == false || startupError != nil { toggle() }
+        updater.checkIfNeeded()
+        if CommandLine.arguments.contains("--show") || CommandLine.arguments.contains("--show-proxy-apps") || model?.storage.wasConfigured == false || startupError != nil { toggle() }
     }
     func render() {
         let live = model?.live == true && model?.meterError == nil
@@ -53,14 +64,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func toggle() {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = item.button else { return }
+        updater.checkIfNeeded()
         let screen = button.window?.screen ?? NSScreen.main
         let available = screen?.visibleFrame.size ?? NSSize(width: 900, height: 760)
         let width = max(280, min(450, available.width - 32))
         let height = max(180, min(620, available.height - 80))
         let view: AnyView
         if let model {
-            view = AnyView(ScrollView(.vertical, showsIndicators: true) {
-                MeterPanel(model: model, panelWidth: width)
+            view = AnyView(VStack(spacing: 0) {
+                ScrollView(.vertical, showsIndicators: true) {
+                    MeterPanel(model: model, panelWidth: width)
+                }
+                Divider()
+                UpdateControls(updater: updater)
             }.frame(width: width, height: height))
         } else {
             view = AnyView(VStack(alignment: .leading, spacing: 16) {
@@ -96,8 +112,10 @@ do {
         try receiver.start()
         RunLoop.main.run()
     } else {
-        let application = NSApplication.shared
-        let delegate = AppDelegate(); application.delegate = delegate; application.run()
+        MainActor.assumeIsolated {
+            let application = NSApplication.shared
+            let delegate = AppDelegate(); application.delegate = delegate; application.run()
+        }
     }
 } catch {
     fputs("RouteMeter could not initialize local storage. Check file permissions and configuration.\n", stderr)

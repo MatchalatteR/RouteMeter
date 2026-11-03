@@ -75,7 +75,7 @@ public partial class MainWindow : Window
             .Select(a=>new Row(a.App.Name,live&&!fresh?"—":Format(a.Count.Download,live),live&&!fresh?"—":Format(a.Count.Upload,live),live&&!fresh?"—":Format(a.Count.Total,live),a.App.Executable??""));
         AppGrid.ItemsSource=apps.ToList();
         var unattributed=current.Apps.Where(a=>a.Attribution!="executable").Aggregate(new Counts(),(sum,a)=>Counts.Sum(sum,Adjust(a.Usage.Proxy,baseline?.Apps.GetValueOrDefault(a.Id))));
-        Quality.Text=!string.IsNullOrEmpty(current.PersistenceError)?current.PersistenceError:current.Overflow?"Counter overflow: measurement is incomplete.":current.UncertainUpload>0?"Transfer errors left "+Format(current.UncertainUpload)+" of possible upload unmeasured.":unattributed.Total>0?"Unattributed Proxy: "+Format(unattributed.Total):"Source: RouteMeter Core · complete connection lifecycle counters";
+        Quality.Text=!string.IsNullOrEmpty(current.PersistenceError)?current.PersistenceError:current.Overflow?"Counter overflow: measurement is incomplete.":current.UncertainUpload>0?"Transfer errors left "+Format(current.UncertainUpload)+" of possible upload unmeasured.":unattributed.Total>0?"Unattributed Proxy: "+Format(unattributed.Total):"Source: RouteMeter Core";
         tray.Text="RouteMeter | Proxy ↓"+Format(proxyRate.Download,true)+" ↑"+Format(proxyRate.Upload,true);
     }
     private static Counts Rate(Counts now,Counts before,decimal seconds)

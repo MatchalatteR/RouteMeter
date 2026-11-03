@@ -1,6 +1,6 @@
 # RouteMeter 中文说明
 
-RouteMeter 0.2 提供 **Windows 和 macOS** 原生客户端，用于查看按 App 归属的 **Proxy** 用量。主界面明确显示 Direct、Proxy、Download、Upload 和 Total。
+RouteMeter 提供 **Windows 和 macOS** 原生客户端，用于查看按 App 归属的 **Proxy** 用量。主界面显示 Direct、Proxy、Download、Upload 和 Total。
 
 ## 核心原则
 
@@ -22,11 +22,19 @@ RouteMeter 0.2 提供 **Windows 和 macOS** 原生客户端，用于查看按 Ap
 2. 将要统计的应用接到该核心的实际 HTTP/SOCKS/TUN 入口。替换日常代理前，先验证分流及回退。
 3. 打开客户端，点击 **Connect Core…**。
 4. 选择 `<core-home>/route-meter/connection.json`。
-5. 在 **Proxy usage by App** 中查看累计、实时流速及应用筛选。
+5. 在 **Proxy apps** 中查看累计、实时流速及应用筛选。
 
 完整命令及边界见 [Core 配置说明](CORE-SETUP.md)。客户端不会自动修改系统代理、DNS 或路由。TUN/全局接管属于单独部署步骤，可能需要管理员权限。
 
 macOS 保留 **QX legacy totals** 模式。该模式只有 Direct/Proxy 汇总，不提供按 App 的 Proxy 归属。新 Core 模式不需要读取 QX 连接日志。
+
+## macOS 更新
+
+应用启动和打开面板时会检查 GitHub 正式版本。自动检查间隔为六小时。点击 **Check for updates** 可以立即检查。有新版本时，点击 **Update to …**。应用会下载对应架构的包，校验 SHA-256 和应用包，然后安装并重启。安装路径必须可写，例如 `~/Applications`。
+
+更新保留累计数据、Core 连接、路由配置和登录启动设置。正在运行的路由核心继续运行。如果新版客户端未能确认启动成功，安装助手会恢复并打开旧版。旧版 `Previous.app` 和安装日志保存在应用旁的私有 `.RouteMeter-update-*` 目录中。确认更新正常后，可以删除此目录。Windows 仍通过 Releases 下载更新。
+
+更新包及校验文件均来自本仓库的 GitHub Releases。SHA-256 用于检查文件完整性，不代替独立的发布者签名。当前 macOS 包仍使用临时签名。
 
 ## 数值与保存
 

@@ -26,7 +26,7 @@ Download the matching release ZIP: Windows x64, macOS Apple Silicon, or macOS In
 1. Start the included **RouteMeter Core** with your private Mihomo-compatible routing configuration.
 2. Route the intended applications through that core's actual HTTP/SOCKS/TUN inbound. Verify the routing before replacing an existing daily VPN/proxy.
 3. Open RouteMeter, choose **Connect Core…**, and select `<core-home>/route-meter/connection.json`.
-4. Open **Proxy usage by App**. Choose cumulative usage or live rates; filter by App name as needed.
+4. Open **Proxy apps**. Choose cumulative usage or live rates; filter by App name as needed.
 
 See [complete setup and measurement boundaries](docs/CORE-SETUP.md). The viewer does not change system proxy settings, DNS or routes. TUN/global routing is a separate deployment step and can require elevation. Merely running an observer next to QX cannot recover the missing connection ownership.
 
@@ -35,6 +35,14 @@ See [complete setup and measurement boundaries](docs/CORE-SETUP.md). The viewer 
 The macOS app retains **QX legacy totals** compatibility. That mode supports aggregate Direct/Proxy counters only. Per-App Proxy attribution requires RouteMeter Core.
 
 Initial distributions are ad-hoc signed on macOS and are not Developer ID notarized; the Windows binaries do not yet have an Authenticode certificate. OS download protections can apply. Build from reviewed source if your environment requires it; no security protection needs to be disabled by RouteMeter.
+
+## Update on macOS
+
+The panel checks GitHub for a stable release at startup and when opened, at most once every six hours. Click **Check for updates** to check immediately. When a newer compatible package is available, click **Update to …**. RouteMeter downloads the matching Apple Silicon or Intel ZIP, verifies its SHA-256 checksum and app bundle, installs it, then restarts. No browser or Terminal is needed. The app must be in a writable folder, such as `~/Applications`.
+
+The updater preserves viewer data, Core preferences, routing configuration and login settings. It does not restart a running routing core. If the new viewer fails to confirm startup, the installer restores and opens the previous app. The backup and install log remain in a private `.RouteMeter-update-*` folder beside the app; `Previous.app` is the prior version. You can remove that folder after confirming the update. Windows updates still use the release download.
+
+Packages and checksum files come from this repository's GitHub Releases over HTTPS. Checksums detect corrupt or mismatched downloads; they are not independent publisher signatures. Current packages remain ad-hoc signed.
 
 ## Reading the display
 
