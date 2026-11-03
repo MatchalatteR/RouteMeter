@@ -1,28 +1,33 @@
 # Architecture
 
-QX owns routing and classification. RouteMeter owns presentation, local persistence, and its loopback receiver.
+## Controlled data plane
 
-1. A QX task runs every two seconds and invokes `get_traffic_statistics`.
-2. The script allowlists six aggregate fields per entry and POSTs a versioned envelope to `127.0.0.1`.
-3. `Receiver` bounds HTTP input and validates the Host and per-install credential.
-4. `TrafficAccumulator` validates snapshot time/order/schema, combines TCP/UDP rates, and accumulates counter differences.
-5. `MeterModel` publishes the accepted snapshot on the main thread and checkpoints state at most every ten seconds, plus on Reset or normal quit.
-6. SwiftUI renders the panel inside a screen-constrained scroll view. AppKit owns the menu bar item and popover.
+Application → RouteMeter Core inbound → OS-backed source lookup → selected leaf adapter → remote service.
 
-`RouteMeterCore` contains the counter model, unit formatting, and HTTP parser. It has no UI or external package dependencies. The executable handles OS integration and resources.
+RouteMeter Core is a separately built modified Mihomo, pinned by engine/upstream.json. The integration patch preserves the original transport wrapper layout and adds explicit actual-leaf adapter type propagation. Policy groups append display chains without changing this captured type. The final supported adapter type determines Direct/Proxy; unknown types remain Unknown.
 
-## Persistence contract
+For a counted root connection, the tracker owns one metering handle. Successful reads/writes, buffer paths, zero-copy count callbacks and UDP I/O add payload byte counts to the owning App and route bucket. Nested transport trackers do not double count root application traffic. An errored buffered write with an unavailable partial byte count goes to an explicit uncertainty indicator. Closing a connection only reduces its active count; cumulative counters remain.
 
-State schema 1 includes exact unsigned byte counters, the initial/reset time, the last accepted source timestamp, and previous per-node/type counters. A normal app restart resumes deltas; it does not zero totals. A crash can lose up to the most recent ten-second checkpoint interval. Unreadable state is retained locally with a timestamped filename before establishing a new baseline.
+Source identity is the OS-owning executable captured when the connection is established. macOS bundles group under the outermost .app, Windows normalizes full-path case/separators. The native process lookup rejects ambiguous multiple-PID source matches. Unresolved sources stay Unattributed. A shared background service is shown as that owning process rather than a guessed initiating GUI App.
 
-The first snapshot is a baseline. Subsequent newly observed nodes contribute their counters from zero. Missing nodes retain their previous baseline, preventing double counting on return. Any decrease in either direction of an existing entry rebases the entire current snapshot. An unobserved QX reset may still hide traffic; no billing or complete-history guarantee is made.
+## Meter service and persistence
 
-The display becomes stale after nine seconds without accepted data. Persisted rates are never presented as live until a new snapshot arrives. Reordered or excessively old/future samples are ignored.
+The metering module has one synchronized counter ledger. A snapshot clones all App rows consistently and derives the global route totals from them. Each componentwise App sum equals the corresponding global total.
 
-## Local transport boundary
+The core owns an OS-backed exclusive writer lock in a private meter directory. Private atomic checkpoints preserve counters and epoch; a new instance ID marks each process start. Read failures and invalid state are visible, with invalid files preserved locally. Normal checkpoint cadence is one second; any data since the last successful checkpoint can be lost on forced stop or storage failure.
 
-One IPv4 loopback listener; no all-interface bind, TLS proxy, privileged helper, extension entitlement, or packet capture. Ingestion needs a random 256-bit header credential. Script retrieval needs a separately generated random URL path. Neither belongs in source control or public issues.
+An authenticated, read-only service binds to a random IPv4 loopback port and writes a private connection manifest. It serves only usage and is separate from the routing controller. It exposes no destinations, URLs, payloads, route mutation or connection termination. Unix permissions and Windows ACLs protect the manifest/state; the same OS user or administrator remains outside this isolation boundary.
 
-The parser accepts narrowly scoped HTTP/1.1 requests with unique headers and an explicit body length. It rejects browser Origin headers, unexpected Host headers, chunking, pipelining, overlong headers/body, and unbounded connection lifetimes. CORS is not enabled. These measures reduce accidental or browser-origin access, but cannot isolate data from another process running as the same user or an administrator.
+## Native views
 
-The script template is public; each rendered instance is private. A setup URL fetch returns only the generated bridge script. No API serves configuration or saved state. Errors never echo credentials or request bodies.
+macOS AppKit/SwiftUI and Windows WPF/NotifyIcon consume protocol schema 2. Clients disable inherited HTTP proxies and redirects for this private API, validate loopback connection manifests, freshness, identifiers and App/global conservation, then derive live rates from cumulative snapshots.
+
+Per-App Proxy lists read only the Proxy bucket. View reset subtracts an epoch-keyed local baseline, leaving core totals and other viewers intact. Stale live data becomes a dash. Unknown ownership/routing and quality warnings remain visible. Panel/window height is limited and content scrolls internally.
+
+## Legacy QX compatibility
+
+The old QX script can still push node/Direct aggregates to the macOS viewer. That is a distinct aggregate-only source. The new Core mode does not read QX logs and cannot retrospectively classify traffic routed by another proxy. Actual applications must use the controlled Core inbound for the new attribution feature.
+
+## Distribution and verification
+
+The original native viewers are MIT; the modified routing core and metering integration are GPL-3.0. Release archives include binary notices and complete patched corresponding source with vendored dependencies. Clean native Windows/macOS CI builds the core and viewer and verifies known TCP/UDP payload counts, closed short flows, two real source executables, conservation, native JSON/HTTP compatibility and restart persistence using only temporary loopback fixtures.
