@@ -11,6 +11,14 @@ backup="$work/Previous.app"
 swapped=0
 installed=0
 
+launch() {
+  if [ -n "${ROUTEMETER_DATA_DIR:-}" ]; then
+    /usr/bin/open -n --env "ROUTEMETER_DATA_DIR=$ROUTEMETER_DATA_DIR" "$target" --args "$@"
+  else
+    /usr/bin/open -n "$target" --args "$@"
+  fi
+}
+
 rollback() {
   result=$?
   trap - EXIT
@@ -31,10 +39,10 @@ rollback() {
     fi
     if [ "$installed" = 1 ]; then /bin/mv "$target" "$work/Failed.app"; fi
     /bin/mv "$backup" "$target"
-    /usr/bin/open -n "$target" --args --update-failed || true
+    launch --update-failed || true
     echo 'Update failed. Previous application restored.' >&2
   elif ! kill -0 "$old_pid" 2>/dev/null; then
-    /usr/bin/open -n "$target" --args --update-failed || true
+    launch --update-failed || true
   fi
   exit "$result"
 }
@@ -58,7 +66,7 @@ if kill -0 "$old_pid" 2>/dev/null; then echo 'Viewer did not quit.' >&2; exit 1;
 swapped=1
 /bin/mv "$new" "$target"
 installed=1
-/usr/bin/open -n "$target" --args --update-receipt "$work"
+launch --update-receipt "$work"
 for ((i=0;i<150;i++)); do
   if [ -f "$work/ready" ]; then
     trap - EXIT

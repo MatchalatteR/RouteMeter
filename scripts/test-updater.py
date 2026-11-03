@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix="routemeter updater ") as temporary:
     values["CFBundleShortVersionString"] = "9.0.0"
     info.write_bytes(plistlib.dumps(values))
     subprocess.run(["codesign", "--force", "--sign", "-", str(fixture)], check=True, capture_output=True)
-    for case in ["success", "launch-failure", "no-receipt", "invalid-signature", "viewer-still-running", "swap-failure"]:
+    for case in ["success", "custom-data-folder", "launch-failure", "no-receipt", "invalid-signature", "viewer-still-running", "swap-failure"]:
         parent = root / case
         parent.mkdir()
         target = parent / "Route Meter.app"
@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory(prefix="routemeter updater ") as temporary:
         launch = parent / "open-fixture"
         launch.write_text("#!/bin/bash\n" + (
             'if [ "$#" = 5 ]; then touch "$5/ready"; fi\n' if case == "success" else
+            'if [ "$2" = --env ] && [ "$3" = "ROUTEMETER_DATA_DIR=$ROUTEMETER_DATA_DIR" ]; then touch "$7/ready"; else exit 1; fi\n' if case == "custom-data-folder" else
             "exit 42\n" if case == "launch-failure" else "exit 0\n"))
         launch.chmod(0o700)
         # Keep production timeouts long; shorten only this test copy.
@@ -63,11 +64,16 @@ with tempfile.TemporaryDirectory(prefix="routemeter updater ") as temporary:
         if case != "viewer-still-running":
             child.wait()
         try:
+            environment = dict(os.environ)
+            environment.pop("ROUTEMETER_DATA_DIR", None)
+            if case == "custom-data-folder":
+                environment["ROUTEMETER_DATA_DIR"] = str(parent / "private data")
             result = subprocess.run(["/bin/bash", str(script), str(work), str(target), str(child.pid), "9.0.0"],
-                                    capture_output=True, text=True, timeout=10)
-            assert (result.returncode == 0) == (case == "success"), (case, result.stdout, result.stderr)
-            assert version(target) == ("9.0.0" if case == "success" else old_version), case
-            if case == "success":
+                                    capture_output=True, text=True, timeout=10, env=environment)
+            success = case in ["success", "custom-data-folder"]
+            assert (result.returncode == 0) == success, (case, result.stdout, result.stderr)
+            assert version(target) == ("9.0.0" if success else old_version), case
+            if success:
                 assert version(work / "Previous.app") == old_version
             else:
                 assert not (work / "Previous.app").exists(), case

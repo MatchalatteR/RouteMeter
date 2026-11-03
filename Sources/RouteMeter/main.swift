@@ -25,7 +25,12 @@ import RouteMeterCore
             if CommandLine.arguments.contains("--show-proxy-apps") { model.core.showApps = true }
             receiver = Receiver(storage: storage, receive: { [weak self] packet in
                 self?.model?.ingest(packet); self?.render()
-            }, status: { [weak self] error in self?.model?.serverError = error; self?.render() })
+            }, status: { [weak self] error in
+                self?.model?.serverError = error; self?.render()
+                if error == nil, let receipt = AppUpdater.receipt("ready") {
+                    try? Data("ready".utf8).write(to: receipt, options: .atomic)
+                }
+            })
             try receiver?.start()
         } catch { startupError = "Cannot load settings. Check the application data folder permissions." }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -36,7 +41,6 @@ import RouteMeterCore
         timer?.tolerance = 0.2
         render()
         updater.checkIfNeeded()
-        if startupError == nil, let receipt = AppUpdater.receipt("ready") { try? Data("ready".utf8).write(to: receipt, options: .atomic) }
         if CommandLine.arguments.contains("--show") || CommandLine.arguments.contains("--show-proxy-apps") || model?.storage.wasConfigured == false || startupError != nil { toggle() }
     }
     func render() {
