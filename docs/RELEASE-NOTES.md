@@ -1,3 +1,11 @@
+# RouteMeter 0.3.0
+
+- Shorter labels, consistent sentence case and readable text in the native viewers.
+- macOS setup controls moved into Settings. Repeated formulas and permanent technical footnotes removed from the panel. Measurement details remain in the documentation; active errors remain visible.
+- Proxy apps remains accessible in QX mode, with a short Core connection prompt and numbered rankings when connected.
+- macOS in-app updates from stable GitHub Releases: matching architecture, SHA-256 and bundle checks, background download, automatic replacement and restart. A private backup and startup acknowledgement allow rollback if launch fails.
+- Viewer data and routing settings are preserved. Running routing cores are not restarted. Windows keeps manual release downloads.
+
 # RouteMeter 0.2.2
 
 The metering API now returns 503 until the routing backend has finished its initial configuration. A connectable listening socket is not used as proof of routing readiness. This removes the startup test/client race seen on both Windows and macOS. A regression test verifies the 503-to-200 readiness transition without weakening any payload accounting assertion. The v0.2.1 candidate did not publish because its final Windows runtime check detected this race.

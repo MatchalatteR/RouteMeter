@@ -7,7 +7,7 @@ let package = Package(
     products: [.executable(name: "RouteMeter", targets: ["RouteMeter"])],
     targets: [
         .target(name: "RouteMeterCore"),
-        .executableTarget(name: "RouteMeter", dependencies: ["RouteMeterCore"], resources: [.copy("Resources/statistics-push.js")]),
+        .executableTarget(name: "RouteMeter", dependencies: ["RouteMeterCore"], resources: [.copy("Resources/statistics-push.js"), .copy("Resources/install-update.sh")]),
         .testTarget(name: "RouteMeterCoreTests", dependencies: ["RouteMeterCore"])
     ]
 )

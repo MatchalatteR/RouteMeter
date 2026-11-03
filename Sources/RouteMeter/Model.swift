@@ -11,6 +11,7 @@ final class MeterModel: ObservableObject {
     @Published var serverError: String?
     @Published var clock = Date()
     @Published var notice: String?
+    @Published var settingsExpanded = false
     @Published var copied = false
     @Published var startup = LoginStart.enabled
     let storage: Storage
