@@ -51,7 +51,8 @@ struct MeterPanel: View {
                 route("Proxy", value: model.proxy, color: .accentColor)
                 route("Total", value: model.totalRate, color: .primary)
             }
-            Text("Total = Direct + Proxy").font(.system(size: 12)).foregroundStyle(.secondary)
+            Text(model.unknownTotal.total > 0 ? "Total = Direct + Proxy + Unknown" : "Total = Direct + Proxy")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
             if model.ticks.count > 1 { VStack(alignment: .leading,spacing: 5) {
                 Sparkline(ticks: model.ticks, active: model.live).frame(height: 64)
                 HStack {
@@ -76,19 +77,28 @@ struct MeterPanel: View {
                 }.font(.system(size: 12)).foregroundStyle(.secondary)
                 total("Direct", model.directTotal)
                 total("Proxy", model.proxyTotal)
+                if model.unknownTotal.total > 0 { total("Unknown", model.unknownTotal) }
                 total("Total", model.totalVolume)
                 Text("Each row: Total = Download + Upload").font(.system(size: 11)).foregroundStyle(.secondary)
             }
+            if model.core.selected { CoreAppBreakdown(client: model.core) }
             if !model.nodes.isEmpty {
                 Text(model.nodes.joined(separator: " · ")).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
             }
-            Text("QX traffic only · Refreshes every 2 seconds.\nTotals persist across app restarts. Not a billing meter.")
+            Text(model.core.selected ? "Core-routed application payload · 1-second display updates.\nCounters survive closed connections and normal restarts.\nForce-stop/power loss can lose the latest checkpoint interval." : "QX traffic only · Refreshes every 2 seconds.\nQX does not provide per-App attribution. Not a billing meter.")
                 .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false,vertical: true)
-            if let error = model.serverError ?? model.notice {
+            if let error = model.meterError ?? model.core.qualityWarning ?? model.notice {
                 Text(error).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
             Divider()
             VStack(alignment: .leading, spacing: 12) {
+                Text(model.core.selected ? "Source: RouteMeter Core" : "Source: QX legacy totals").foregroundStyle(.secondary)
+                HStack {
+                    Button("Connect Core…") { model.core.connect() }
+                    Spacer()
+                    if model.core.selected { Button("Use QX totals") { model.core.useQX() } }
+                }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                if !model.core.selected {
                 HStack {
                     Button(model.copied ? "Task copied" : "Copy QX task") { model.copyTask() }
                     Spacer()
@@ -97,6 +107,7 @@ struct MeterPanel: View {
                 if !model.live {
                     Text("QX: Tasks → Add → Add as text. Paste the task, update its script, and keep the QX task switch on.")
                         .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
                 }
                 Toggle("Launch at login", isOn: Binding(get: { model.startup }, set: { model.setStartup($0) })).toggleStyle(.checkbox)
             }.font(.system(size: 13))
@@ -134,6 +145,43 @@ struct MeterPanel: View {
             Text(bytes(value.up)).frame(maxWidth: .infinity,alignment: .leading)
             Text(bytes(value.total)).fontWeight(.semibold).frame(maxWidth: .infinity,alignment: .leading)
         }.font(.system(size: 14)).monospacedDigit()
+    }
+}
+
+private struct CoreAppBreakdown: View {
+    @ObservedObject var client: CoreClient
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+            Text("Proxy usage by App").font(.system(size: 15, weight: .semibold))
+            Toggle("Show live rates", isOn: $client.appLiveRates).toggleStyle(.checkbox).font(.system(size: 12))
+            TextField("Filter apps", text: $client.filter).textFieldStyle(.roundedBorder)
+            if client.unattributedProxy.total > 0 {
+                Text("Unattributed Proxy: \(formatBytes(client.unattributedProxy.total)). No App identity was guessed.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            HStack {
+                Text("App").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Download | Upload").foregroundStyle(.secondary)
+            }.font(.system(size: 12))
+            ForEach(Array(client.rows.prefix(50))) { row in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(row.name).font(.system(size: 13, weight: .medium)).help(row.path)
+                    let amount = client.appLiveRates ? row.rate : row.usage
+                    let usable = !client.appLiveRates || client.live
+                    HStack {
+                        Text(usable ? formatBytes(amount.down, rate: client.appLiveRates) : "—")
+                        Text("|").foregroundStyle(.secondary)
+                        Text(usable ? formatBytes(amount.up, rate: client.appLiveRates) : "—")
+                        Spacer()
+                        if !client.appLiveRates { Text("Total " + formatBytes(amount.total)).foregroundStyle(.secondary) }
+                    }.font(.system(size: 12)).monospacedDigit()
+                }.padding(.vertical, 3)
+            }
+            if client.rows.isEmpty { Text("No Proxy bytes in this view yet.").font(.system(size: 12)).foregroundStyle(.secondary) }
+            Text("Sorted by Proxy usage. Top 50 shown. Reset affects this viewer only.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
     }
 }
 

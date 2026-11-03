@@ -1,13 +1,14 @@
-# RouteMeter 0.1.0
+# RouteMeter 0.2.0
 
-First public release of the native macOS menu bar companion for Quantumult X.
+First Windows + macOS lifecycle-meter release.
 
-- Direct / Proxy rates with Download and Upload indicators.
-- Total = Direct + Proxy; cumulative Download / Upload / Total columns.
-- Persistent usage and Reset; QX counter-reset and stale-data handling.
-- Readable system-size menu bar text and a screen-constrained scrollable panel.
-- Copyable QX setup task; optional launch at login.
-- Random per-install loopback script path and ingestion credential.
-- Dependency-free Swift package, XCTest coverage, real HTTP integration test, QX bridge test, and CI-built architecture-specific archives.
+- Separately distributed RouteMeter Core: pinned Mihomo v1.19.33 with metering at real adapter I/O.
+- Closed short TCP connections and UDP remain accounted for after UI polling gaps.
+- Actual leaf adapter types determine Direct/Proxy, including misleading custom names and policy groups.
+- Per-App executable ownership, macOS bundle grouping, Windows path normalization, visible Unattributed and Unknown-routing buckets.
+- Private read-only loopback API, persistent counters, explicit quality warnings and a single-writer lock.
+- Native Windows WPF tray viewer and macOS menu bar viewer, each validated against the real protocol.
+- macOS QX aggregate compatibility retained; QX does not provide the new App attribution.
+- GPL-3.0 core license and complete patched corresponding source included with the release; original viewers remain MIT.
 
-Requires macOS 14+ and a separately installed Quantumult X. Packages are ad-hoc signed and are not Developer ID signed or notarized. Intel builds need further hardware validation. This is not a billing meter. Read the setup and validation notes before use.
+Traffic must actually pass through RouteMeter Core. This is application-payload accounting, not encrypted-wire/ISP billing or retrospective observation of another proxy. OS-wide routing/TUN setup is a separate deployment action. Signing/notarization and broader hardware/TUN/long-duration validation remain open limitations. Read CORE-SETUP and VALIDATION before deployment.

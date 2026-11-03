@@ -1,41 +1,48 @@
 # RouteMeter 中文说明
 
-RouteMeter 是 Quantumult X 的原生 macOS 菜单栏配套组件。它分别显示 **Direct** 和 **Proxy**，并明确标注 **Download、Upload、Total**。
+RouteMeter 0.2 提供 **Windows 和 macOS** 原生客户端，用于查看按 App 归属的 **Proxy** 用量。主界面明确显示 Direct、Proxy、Download、Upload 和 Total。
 
-它读取 QX 自己分类后的计数，不按进程名猜测代理流量，也不使用“整机流量减去某张网卡”的算法。当前是首个公开版本 **0.1.0**。项目已提供可复现构建和测试，但不将它等同于套餐计费工具或所有系统上的长期验证。
+## 核心原则
 
-## 安装与配置
+**实际流量必须经过 RouteMeter Core。** 它是加入完整生命周期计量的独立 Mihomo 修改版。统计发生在实际路由适配器的读写处，连接关闭后累计仍保留。界面刷新频率不决定累计精度。
 
-需要 macOS 14+ 和已安装的 Quantumult X。请从 [Releases](https://github.com/MatchalatteR/RouteMeter/releases) 选择 Apple Silicon（arm64）或 Intel（x86_64）版本，解压后将应用放入“应用程序”或用户的 Applications 目录。
+- 同时覆盖 TCP、UDP 和两次刷新之间已经关闭的短连接。
+- 根据实际叶适配器类型区分 Direct/Proxy，不按节点名称、策略组名或 TUN 接口猜测。
+- 在连接创建时查询系统来源。无法识别或存在歧义时，保留在 **Unattributed**。
+- macOS 将同一外层 .app 内的辅助进程合并。Windows 按完整、大小写归一后的可执行文件路径区分应用。
+- Unknown routing、写入计数不确定、计数溢出和持久化失败均显式提示。
 
-首批构建仅使用 ad-hoc 签名，尚无 Apple Developer ID 签名及公证。下载后可能触发 Gatekeeper 限制。也可以审核源码后，在本机运行 `./scripts/install.sh` 构建安装。无需关闭系统安全保护，也不需要管理员权限。
+计量范围是 **该核心实际处理的应用载荷**。它不是服务商扣费、加密后的线速字节或所有绕过该核心的流量统计。仅在 QX 旁边放一个监控器，无法恢复 QX 没有暴露的来源信息。
 
-1. 打开 RouteMeter，点击 **Copy QX task**。
-2. 在 QX 的计划任务面板中，点击“添加 → 文本方式添加”。
-3. 粘贴复制的整行配置，保存。
-4. 对该任务执行一次“更新”，下载脚本。
-5. 保持该任务、QX 计划任务总开关和 QX 隧道开启。
+## 安装
 
-几秒后，组件应显示 **QX connected**。不需要断开 QX，也不需要修改分流规则或启用 HTTP Backend。每台电脑的脚本路径独立生成，请不要公开分享你复制的任务行。
+从 [Releases](https://github.com/MatchalatteR/RouteMeter/releases) 下载对应版本。Windows x64 包包含客户端和 .NET 运行时；macOS 需要 14+，分 Apple Silicon 和 Intel 构建。Core 一同提供。
 
-## 数值说明
+1. 使用自己的私有 Mihomo 格式配置启动 RouteMeter Core。
+2. 将要统计的应用接到该核心的实际 HTTP/SOCKS/TUN 入口。替换日常代理前，先验证分流及回退。
+3. 打开客户端，点击 **Connect Core…**。
+4. 选择 `<core-home>/route-meter/connection.json`。
+5. 在 **Proxy usage by App** 中查看累计、实时流速及应用筛选。
 
-- **Direct**：QX 中标为 direct 的 TCP/UDP 流量。
-- **Proxy**：各代理节点的 TCP/UDP 流量之和，不含 reject/discard。
-- **Total 行**：Direct + Proxy，分别计算 Download 和 Upload。
-- **累计区域每行的 Total 列**：该行 Download + Upload。
-- 菜单栏的 ↓ 为 Download，↑ 为 Upload，所有数值都是每秒字节数；K/M/G 使用 1024 进位。
+完整命令及边界见 [Core 配置说明](CORE-SETUP.md)。客户端不会自动修改系统代理、DNS 或路由。TUN/全局接管属于单独部署步骤，可能需要管理员权限。
 
-首次有效样本建立基准。之后按累计计数器的差值累加。累计值和基准会保存在本机，并在应用重启后继续使用。若 QX 同一会话中的计数器持续增长，组件关闭期间的流量也可能在下次采样时补入。
+macOS 保留 **QX legacy totals** 模式。该模式只有 Direct/Proxy 汇总，不提供按 App 的 Proxy 归属。新 Core 模式不需要读取 QX 连接日志。
 
-点击 **Reset** 后，下一个样本建立新基准。QX 计数器下降时，整份样本重新建立基准，避免跳出负值或异常大值。未观测到的 QX 会话重置之间的流量无法恢复。超过 9 秒没有有效数据时，实时流速显示为 `—`。
+## 数值与保存
 
-统计范围仅为 **QX 处理并计数的流量**。绕过 QX 的流量、部分局域网流量、协议开销和服务商实际扣费可能不同。它不是整机所有网卡或每个应用的流量监控器。
+- ↓ = Download，↑ = Upload；流速单位为每秒字节数，K/M/G 按 1024 进位。
+- Total 行包含 Direct + Proxy + Unknown routing；有 Unknown 时会单独列出。
+- 每行累计 Total = Download + Upload。
+- 按 App 列表只汇总 Proxy 桶，不把无法分类的路由算进 Proxy。
+- Reset 只重置当前查看器的基准，不清除核心及其他查看器的累计。
+- 正常情况下每秒原子保存一次，正常退出时再保存。强制退出或掉电可能丢失上次成功保存之后的数据，存储故障会延长该窗口。
 
-## 本机数据与停止方法
+核心状态只保存可执行文件/App 身份和计数，不在该状态中保存目标 IP、域名、URL、请求头或正文。私有 API 仅监听本机回环，凭据独立生成。不要在公开 issue 中分享连接文件、私有路由配置或未遮盖的应用路径。
 
-配置、脚本和累计数据保存在 `~/Library/Application Support/RouteMeter/`，目录权限 0700，文件权限 0600。只监听 `127.0.0.1:18764`。不上传订阅、浏览记录、请求正文或流量统计。状态文件可能包含代理节点名称。
+## 限制与退出
 
-要完整停用：先在 QX 中禁用 RouteMeter 任务，再关闭组件的 **Launch at login** 并点击 **Quit**。之后可将应用移入废纸篓。本机数据可以保留，也可以单独移入废纸篓。退出本组件不会断开 QX。
+这仍是需要分平台验收的开源版本。跨架构构建不等于实机验收；HTTP/SOCKS 本机测试也不等于全部第三方 App、TUN 或长期稳定性验证。macOS 尚未 Developer ID 公证，Windows 尚未 Authenticode 签名。
 
-详细的故障处理、构建和卸载信息见[英文主页](../README.md)。
+退出查看器不会停止代理核心。确实要停用该代理时，再终止核心进程。保存数据目录可保留累计。旧 QX 版本卸载前，应先禁用对应任务及登录启动项。
+
+原生查看器使用 MIT 许可；修改后的核心与其计量代码使用 GPL-3.0。发布包旁提供对应的完整修改后源代码及构建说明。见[组件许可说明](../THIRD-PARTY-NOTICES.md)。

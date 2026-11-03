@@ -12,6 +12,15 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/RouteMeter" "$app/Contents/MacOS/RouteMeter"
 strip -S "$app/Contents/MacOS/RouteMeter"
 cp -R "$bin/RouteMeter_RouteMeter.bundle" "$app/Contents/Resources/"
+core_arch="$arch"
+if [ "$arch" = x86_64 ]; then core_arch=amd64; fi
+core="dist/core/darwin-$core_arch/RouteMeterCore"
+if [ -f "$core" ]; then
+  mkdir -p "$app/Contents/Helpers"
+  cp "$core" "$app/Contents/Helpers/RouteMeterCore"
+  cp engine/licenses/GPL-3.0.txt "$app/Contents/Resources/LICENSE-Core-GPL-3.0.txt"
+  codesign --force --sign - "$app/Contents/Helpers/RouteMeterCore"
+fi
 python3 - "$app/Contents/Info.plist" "$version" <<'PY'
 import plistlib,sys
 from pathlib import Path

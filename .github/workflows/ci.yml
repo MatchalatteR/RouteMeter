@@ -1,7 +1,7 @@
 name: Build and test
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -11,6 +11,82 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  core:
+    name: Core and native viewer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest]
+    env:
+      PYTHON: python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: '8.0.x'
+      - name: Meter concurrency, persistence and local API
+        shell: bash
+        run: |
+          cd engine/meter
+          if [ "$RUNNER_OS" = macOS ]; then go test -race ./...; else go test ./...; fi
+      - name: Build patched routing core
+        shell: bash
+        run: ./scripts/build-core.sh
+      - name: Build macOS viewer
+        if: runner.os == 'macOS'
+        run: swift build --build-system native
+      - name: Build Windows viewer and archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - name: Verify actual TCP, UDP, short connections, source ownership and viewer protocol
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            python scripts/test-core-integration.py dist/core/darwin-arm64/RouteMeterCore --viewer "$(swift build --build-system native --show-bin-path)/RouteMeter"
+          else
+            python scripts/test-core-integration.py dist/core/windows-amd64/RouteMeterCore.exe --viewer dist/windows/win-x64/RouteMeter.Windows.exe
+          fi
+      - name: Additional macOS architecture and corresponding source
+        if: runner.os == 'macOS'
+        run: |
+          ./scripts/build-core.sh darwin amd64
+          python scripts/package-core-source.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: runner.os == 'macOS'
+        with:
+          name: RouteMeter-core-mac-binaries
+          path: |
+            dist/core/darwin-arm64/RouteMeterCore
+            dist/core/darwin-amd64/RouteMeterCore
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: runner.os == 'Windows'
+        with:
+          name: RouteMeter-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: runner.os == 'macOS'
+        with:
+          name: RouteMeter-corresponding-core-source
+          path: |
+            dist/*source.tar.gz
+            dist/*source.tar.gz.sha256
+          if-no-files-found: error
   test:
     runs-on: macos-15
     steps:
@@ -26,7 +102,7 @@ jobs:
       - name: Public source checks
         run: python3 scripts/check-public.py
   package:
-    needs: test
+    needs: [test, core]
     runs-on: macos-15
     strategy:
       matrix:
@@ -35,6 +111,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: RouteMeter-core-mac-binaries
+          path: dist/core
+      - name: Restore executable bits
+        run: chmod +x dist/core/darwin-*/RouteMeterCore
       - run: ./scripts/package.sh '${{ matrix.arch }}'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -64,4 +146,4 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           test "$RELEASE_TAG" = "v$(cat VERSION)"
-          gh release create "$RELEASE_TAG" dist/*.zip dist/*.sha256 --title "RouteMeter $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md --verify-tag
+          gh release create "$RELEASE_TAG" dist/*.zip dist/*source.tar.gz dist/*.sha256 --title "RouteMeter $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md --verify-tag
