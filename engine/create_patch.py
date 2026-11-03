@@ -49,6 +49,7 @@ edited['tunnel/statistic/tracker.go'] = s
 s = edited['main.go'].replace('"context"', '"context"\n\t"github.com/metacubex/mihomo/component/routemeter"')
 needle = '\tif err := hub.Parse(configBytes, options...); err != nil {'
 s = s.replace(needle, '\tif err := routemeter.Initialize(C.Path.HomeDir()); err != nil {\n\t\tlog.Fatalln("RouteMeter metering initialization failed: %s", err.Error())\n\t}\n\tdefer routemeter.Shutdown()\n\n'+needle, 1)
+s = s.replace('\t\tlog.Fatalln("Parse config error: %s", err.Error())\n\t}', '\t\tlog.Fatalln("Parse config error: %s", err.Error())\n\t}\n\troutemeter.MarkReady()', 1)
 edited['main.go'] = s
 s = edited['tunnel/tunnel.go'].replace('findProcessMode.Store(mode)', '// RouteMeter Core always attempts source ownership; failures stay Unattributed.\n\tfindProcessMode.Store(process.FindProcessAlways)')
 edited['tunnel/tunnel.go'] = s

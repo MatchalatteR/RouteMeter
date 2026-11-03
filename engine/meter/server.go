@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,9 +29,14 @@ type Service struct {
 	done       chan struct{}
 	once       sync.Once
 	lock       *os.File
+	ready      atomic.Bool
 }
 
 func Start(directory string) (*Service, error) {
+	return start(directory, true)
+}
+
+func start(directory string, initiallyReady bool) (*Service, error) {
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return nil, err
 	}
@@ -62,6 +68,7 @@ func Start(directory string) (*Service, error) {
 		return nil, err
 	}
 	service := &Service{Meter: meter, Connection: Connection{1, "http://" + listener.Addr().String(), hex.EncodeToString(key)}, stop: make(chan struct{}), done: make(chan struct{}), lock: lock}
+	service.ready.Store(initiallyReady)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/usage", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.Header.Get("Origin") != "" {
@@ -76,6 +83,10 @@ func Start(directory string) (*Service, error) {
 		supplied := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(supplied), []byte(service.Connection.Token)) != 1 {
 			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if !service.ready.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -114,8 +125,13 @@ var defaultService *Service
 var defaultError error
 
 func Initialize(home string) error {
-	defaultOnce.Do(func() { defaultService, defaultError = Start(filepath.Join(home, "route-meter")) })
+	defaultOnce.Do(func() { defaultService, defaultError = start(filepath.Join(home, "route-meter"), false) })
 	return defaultError
+}
+func MarkReady() {
+	if defaultService != nil {
+		defaultService.ready.Store(true)
+	}
 }
 func Default(home string) *Meter {
 	if err := Initialize(home); err != nil {

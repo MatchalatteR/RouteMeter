@@ -1,4 +1,6 @@
-# RouteMeter 0.2.1
+# RouteMeter 0.2.2
+
+The metering API now returns 503 until the routing backend has finished its initial configuration. A connectable listening socket is not used as proof of routing readiness. This removes the startup test/client race seen on both Windows and macOS. A regression test verifies the 503-to-200 readiness transition without weakening any payload accounting assertion. The v0.2.1 candidate did not publish because its final Windows runtime check detected this race.
 
 Fix packaged-core App attribution on macOS 27 when raw PCB lookup is restricted for the signed binary. The core uses the supported read-only system ownership utility as the current user, with exact local endpoint matching and ambiguity rejection. No security settings, signatures, privileges or routing settings are weakened. CI now exercises an explicitly signed core and a forced ownership-fallback path. Actual signed-package testing on the development macOS 27 system is required in addition to macOS 15 CI.
 

@@ -181,3 +181,27 @@ func TestUncertainWritesAndOverflowAreExplicit(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+func TestBackendReadinessBeforeFirstTraffic(t *testing.T) {
+	s, err := start(t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	client := &http.Client{Transport: &http.Transport{Proxy: nil}}
+	check := func(want int) {
+		r, _ := http.NewRequest("GET", s.Connection.Endpoint+"/v1/usage", nil)
+		r.Header.Set("Authorization", "Bearer "+s.Connection.Token)
+		response, e := client.Do(r)
+		if e != nil {
+			t.Fatal(e)
+		}
+		response.Body.Close()
+		if response.StatusCode != want {
+			t.Fatal(response.StatusCode, want)
+		}
+	}
+	check(503)
+	s.ready.Store(true)
+	check(200)
+}

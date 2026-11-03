@@ -215,7 +215,7 @@
  	"encoding/base64"
  	"flag"
  	"fmt"
-@@ -213,6 +214,11 @@
+@@ -213,9 +214,15 @@
  		options = append(options, hub.WithSecret(secret))
  	}
  
@@ -227,6 +227,10 @@
  	if err := hub.Parse(configBytes, options...); err != nil {
  		log.Fatalln("Parse config error: %s", err.Error())
  	}
++	routemeter.MarkReady()
+ 
+ 	if updater.GeoAutoUpdate() {
+ 		updater.RegisterGeoUpdater()
 --- a/tunnel/tunnel.go
 +++ b/tunnel/tunnel.go
 @@ -264,7 +264,8 @@

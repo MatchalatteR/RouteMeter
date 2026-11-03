@@ -2,6 +2,8 @@
 
 The core creates a private `connection.json`: schema 1, an IPv4 loopback `endpoint`, and a random 256-bit hex `token`. Native clients read `GET <endpoint>/v1/usage` with `Authorization: Bearer <token>`. The endpoint is independent of Mihomo's controller API and exposes no configuration/mutation endpoints. The endpoint/token rotate on core start; clients re-read the connection file.
 
+The service returns HTTP 503 during initial routing-backend configuration. Clients must await a successful usage response; a connectable proxy/controller listening port alone does not mean the routing backend is ready.
+
 The response includes:
 
 - `schema: 2`, `program: RouteMeterCore`, `measurement: routing-core-payload-lifecycle`.
