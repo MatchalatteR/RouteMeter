@@ -74,6 +74,10 @@ The viewers have no third-party Swift/.NET UI package dependencies. The core use
 swift build --build-system native
 swift test --build-system native
 
+# Menu bar single/double-click behavior (also works with Command Line Tools)
+swiftc Sources/RouteMeter/StatusItemClicks.swift scripts/test-status-clicks.swift -o /tmp/routemeter-click-tests
+/tmp/routemeter-click-tests
+
 # Core: Go 1.27.3 and Python 3, immutable upstream revision + local patch
 ./scripts/build-core.sh
 (cd engine/meter && go test -race ./...)
@@ -91,6 +95,10 @@ On Windows, build the core from Git Bash (`PYTHON=python ./scripts/build-core.sh
 Tests use temporary private folders, free loopback ports, synthetic routing configs and local mock upstreams. They do not use a personal subscription, change system proxy settings or send test counters to an existing widget.
 
 ## Stop and uninstall
+
+On macOS, click the menu bar indicator to open or close the panel. Double-click it to save usage and quit RouteMeter. The single-click action waits for the system double-click interval. You can also use **Quit** in the panel.
+
+Use a two-finger secondary click on the menu bar indicator to open a menu with **Show/Hide panel**, **Quit RouteMeter**, and **Check for updates**. A mouse right-click or Control-click opens the same menu. If an update is available, the update action installs it and shows progress in the panel. Enable two-finger secondary click in macOS Trackpad settings if needed.
 
 Quitting a viewer leaves the routing core running. Stop a console core with Ctrl+C only when you intend to stop that proxy service. Preserve `<core-home>/route-meter/` to retain totals. Remove the app and local viewer preference/data folders when uninstalling.
 
