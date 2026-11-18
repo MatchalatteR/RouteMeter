@@ -10,13 +10,17 @@ import RouteMeterCore
     var receiver: Receiver?
     var timer: Timer?
     var startupError: String?
+    lazy var statusClicks = StatusItemClicks(singleClick: { [weak self] in self?.toggle() },
+                                           doubleClick: { NSApp.terminate(nil) })
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)
         if let receipt = AppUpdater.receipt("pid") { try? Data(String(getpid()).utf8).write(to: receipt, options: .atomic) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
-            button.target = self; button.action = #selector(toggle)
+            button.target = self; button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.setAccessibilityLabel("RouteMeter Direct / Proxy Download | Upload")
+            button.setAccessibilityHelp("Click to open. Double-click to quit. Right-click for options.")
         }
         popover.behavior = .transient
         do {
@@ -59,12 +63,49 @@ import RouteMeterCore
             .font: NSFont.monospacedSystemFont(ofSize: 12.5, weight: .medium),
             .foregroundColor: NSColor.labelColor
         ])
-        item.button?.toolTip = tooltip
+        item.button?.toolTip = tooltip + "\nClick to open. Double-click to quit. Right-click for options."
     }
-    @objc func toggle() {
+    @objc func statusItemClicked() {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            showContextMenu()
+        } else {
+            statusClicks.click(count: event?.clickCount ?? 1)
+        }
+    }
+    func showContextMenu() {
+        statusClicks.cancel()
+        guard let button = item.button else { return }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let visibility = NSMenuItem(title: popover.isShown ? "隐藏面板" : "显示面板",
+                                    action: popover.isShown ? #selector(hidePanel) : #selector(showPanel), keyEquivalent: "")
+        visibility.target = self
+        menu.addItem(visibility)
+        let quit = NSMenuItem(title: "退出 RouteMeter", action: #selector(quitFromMenu), keyEquivalent: "")
+        quit.target = self
+        menu.addItem(quit)
+        let updateTitle = updater.busy ? "正在更新…" : updater.available.map { "更新至 \($0.version)…" } ?? "检查更新…"
+        let update = NSMenuItem(title: updateTitle, action: #selector(updateFromMenu), keyEquivalent: "")
+        update.target = self
+        update.isEnabled = !updater.busy
+        menu.addItem(update)
+        popover.performClose(nil)
+        menu.popUp(positioning: nil, at: NSPoint(x: button.bounds.minX, y: button.bounds.minY), in: button)
+    }
+    @objc func showPanel() {
+        if !popover.isShown { toggle() }
+    }
+    @objc func hidePanel() { popover.performClose(nil) }
+    @objc func quitFromMenu() { NSApp.terminate(nil) }
+    @objc func updateFromMenu() {
+        updater.performAction()
+        if !popover.isShown { toggle(checkForUpdates: false) }
+    }
+    func toggle(checkForUpdates: Bool = true) {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = item.button else { return }
-        updater.checkIfNeeded()
+        if checkForUpdates { updater.checkIfNeeded() }
         let screen = button.window?.screen ?? NSScreen.main
         let available = screen?.visibleFrame.size ?? NSSize(width: 900, height: 760)
         let width = max(280, min(450, available.width - 32))
@@ -92,9 +133,12 @@ import RouteMeterCore
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        statusClicks.cancel()
         if !popover.isShown { toggle() }; return true
     }
-    func applicationWillTerminate(_ notification: Notification) { model?.save(); receiver?.stop() }
+    func applicationWillTerminate(_ notification: Notification) {
+        statusClicks.cancel(); timer?.invalidate(); model?.save(); receiver?.stop()
+    }
 }
 
 do {
